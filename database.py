@@ -16,10 +16,23 @@ from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores.utils import DistanceStrategy
+from langchain.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain.schema.runnable import RunnablePassthrough
+from langchain.schema.output_parser import StrOutputParser
 
 with open("api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+
+TEST_TEMPLATE = """You are an assistant for question-answering tasks.
+Use the following pieces of retrieved context to answer the question.
+If you don't know the answer, just say that you don't know.
+Use three sentences maximum and keep the answer concise.
+Question: {question}
+Context: {context}
+Answer:
+"""
 
 class RAGDatabase:
     def __init__(self) -> None:
@@ -162,13 +175,26 @@ class RAGDatabase:
 
     def test_query(self, collection=None, query=None):
         data = WeaviateVectorStore.from_documents([], OpenAIEmbeddings(), client=self.weaviate_cli, index_name=collection)
-        docs = data.similarity_search(query)
-        for i, doc in enumerate(docs):
-            print(f"\nDocument {i+1}:")
-            print(doc.page_content)
+        retriever = data.as_retriever()
+        prompt = ChatPromptTemplate.from_template(TEST_TEMPLATE)
+        llm = ChatOpenAI(model_name="gpt-4o-mini-2024-07-18", temperature=0)
+        rag_chain = (
+            {"context": retriever,  "question": RunnablePassthrough()}
+            | prompt
+            | llm
+            | StrOutputParser()
+        )
+        response = rag_chain.invoke(query)
+        return response
+        # docs = data.similarity_search(query)
+        # for i, doc in enumerate(docs):
+        #     print(f"\nDocument {i+1}:")
+        #     print(doc.page_content)
 
 if __name__ == "__main__":
     db = RAGDatabase()
     # db.load_hf(dataset="m-ric/huggingface_doc", collection="HFCTF")
-    db.test_query("HFCTF", "How to create an endpoint")
+    # db.load_file(path="https://raw.githubusercontent.com/hwchase17/chat-your-data/refs/heads/master/state_of_the_union.txt", collection="TESTFILE")
+    res = db.test_query("TESTFILE", "What did the president say about Justice Breyer")
+    print(res)
     db.close()
