@@ -1,0 +1,16 @@
+torch 
+transformers
+accelerate
+bitsandbytes
+langchain
+sentence-transformers
+openpyxl
+pacmap
+datasets
+langchain-community
+langchain-huggingface
+langchain-openai
+langchain-anthropic
+langchain-weaviate
+ragatouille
+weaviate-client
