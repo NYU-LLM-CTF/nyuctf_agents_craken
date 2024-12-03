@@ -8,7 +8,7 @@ class RagAgent:
     def post_summarization(self, prompt=None):
         pass
 
-    def generate(self, prompt=None, pre_summ=False, post_summ=False):
+    def rag_generate(self, prompt=None, pre_summ=False, post_summ=False):
         pass
 
     

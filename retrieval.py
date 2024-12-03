@@ -1,4 +1,4 @@
-from database import RAGDatabase
+from database import WeaviateDB, MilvusDB, RAGDatabase, BaseVectorDB
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain_openai import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
@@ -10,12 +10,6 @@ from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
 from langgraph.graph import START, StateGraph
-from langchain_core.prompts import PromptTemplate
-from langchain_community.retrievers import BM25Retriever
-from langchain_community.retrievers import (
-    WeaviateHybridSearchRetriever,
-)
-
 
 TEST_TEMPLATE = """You are an assistant for question-answering tasks.
 Use the following pieces of retrieved context to answer the question.
@@ -34,14 +28,14 @@ class State(TypedDict):
     answer: str
 
 class RAGRetrieval:
-    def __init__(self, llm=None, prompt_template=None) -> None:
+    def __init__(self, llm=None, prompt_template=None, db_warp: BaseVectorDB=None) -> None:
         self.collection = "HFCTF"
         self.llm = llm
         self.prompt = prompt_template
         self.template = ChatPromptTemplate.from_template(self.prompt)
         self.compressor = LLMChainExtractor.from_llm(llm)
-        self.database = RAGDatabase()
-        self.vector_store = WeaviateVectorStore.from_documents([], OpenAIEmbeddings(), client=self.database.get_db(), index_name=self.collection)
+        self.database = RAGDatabase(database=db_warp)
+        self.vector_store = self.db_wrap.create_vector(collection=self.collection)
         self.use_compressor = False
         self.graph_builder = StateGraph(State).add_sequence([self.retrieve, self.generate])
         self.graph_builder.add_edge(START, "retrieve")
@@ -68,8 +62,7 @@ class RAGRetrieval:
         return result["context"], result["answer"]
     
     def chain_retrieve(self, query) -> None:
-        data = WeaviateVectorStore.from_documents([], OpenAIEmbeddings(), client=self.database.get_db(), index_name=self.collection)
-        retriever = data.as_retriever()
+        retriever = self.vector_store.as_retriever()
         rag_chain = (
             {"context": retriever,  "question": RunnablePassthrough()}
             | self.template
@@ -80,10 +73,10 @@ class RAGRetrieval:
         return response
     
     def close_db(self):
-        self.database.close()
+        self.database.get_db().close_db()
 
 if __name__ == "__main__":
-    retreval = RAGRetrieval(llm=TESTLLM, prompt_template=TEST_TEMPLATE)
+    retreval = RAGRetrieval(llm=TESTLLM, prompt_template=TEST_TEMPLATE, db_warp=MilvusDB())
     context, answer = retreval.graph_retrieve("What is decomposition?")
     # answer = retreval.chain_retrieve("What is decomposition?")
     print(answer)
