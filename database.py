@@ -137,7 +137,7 @@ class RAGDatabase:
     def __init__(self, database: BaseVectorDB) -> None:
         self.vector_db = database
 
-    def __download_data(self, url=None, path=None) -> None:
+    def _download_data(self, url=None, path=None) -> None:
         if path:
             res = requests.get(url)
             with open(path, "w") as f:
@@ -160,7 +160,7 @@ class RAGDatabase:
             return
         if validators.url(path):
             print("URL Found, start downloading...")
-            path = self.__download_data(url=path)
+            path = self._download_data(url=path)
             is_url = True
         loader = TextLoader(path)
         documents = loader.load()
