@@ -9,6 +9,8 @@ from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
 from langgraph.graph import START, StateGraph
+from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
+from langchain_community.document_compressors.rankllm_rerank import RankLLMRerank
 
 class State(TypedDict):
     question: str
@@ -23,6 +25,8 @@ class RAGRetrieval:
         self.compressor = LLMChainExtractor.from_llm(llm)
         self.database = RAGDatabase(database=MilvusDB() if db_type == 'milvus' else WeaviateDB())
         self.vector_store = None
+        self.compressor = RankLLMRerank(top_n=3, model="gpt", gpt_model="gpt-4o-mini-2024-07-18")
+        self.compresstion_retriever = None
         self.graph_builder = StateGraph(State).add_sequence([self.retrieve, self.generate])
         self.graph_builder.add_edge(START, "retrieve")
         self.graph = self.graph_builder.compile()
@@ -45,8 +49,14 @@ class RAGRetrieval:
         self.template = ChatPromptTemplate.from_template(self.prompt)
 
     def retrieve(self, state: State):
-        retrieved_docs = self.vector_store.similarity_search(state["question"])
-        return {"context": retrieved_docs}
+        docs = self.vector_store.similarity_search(state["question"])
+        # retriever = self.vector_store.as_retriever(search_type="mmr", search_kwargs={"k": 20, "param": {"ef":30}})
+        # compression_retriever = ContextualCompressionRetriever(
+        #     base_compressor=self.compressor, base_retriever=retriever
+        # )
+        # docs = compression_retriever.invoke(state["question"])
+        # import pdb; pdb.set_trace()
+        return {"context": docs}
 
     def generate(self, state: State):
         docs_content = "\n\n".join(doc.page_content for doc in state["context"])
@@ -58,7 +68,7 @@ class RAGRetrieval:
         self._create_vector(collection=collection)
         self._create_template(template_str=template)
         result = self.graph.invoke({"question": query})
-        return result["context"], result["answer"]
+        return {"context": result["context"], "answer": result["answer"]}
     
     def chain_retrieve(self, query, collection, template) -> None:
         self._create_vector(collection=collection)
@@ -70,8 +80,8 @@ class RAGRetrieval:
             | self.llm
             | StrOutputParser()
         )
-        response = rag_chain.invoke(query)
-        return response
+        result = rag_chain.invoke(query)
+        return result
     
     def close_db(self):
         self.database.get_db().close_db()

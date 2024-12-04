@@ -32,15 +32,15 @@ class RagAgent:
         pass
 
     def rag_generate(self, query, collection, template=TEST_TEMPLATE):
-        context, answer = self.retrieval_alg.graph_retrieve(query, collection, template)
+        results = self.retrieval_alg.graph_retrieve(query, collection, template)
         # answer = retreval.chain_retrieve("What is decomposition?")
         self.history.append({
             "query": query,
             "collection": collection,
-            "context": context,
-            "answer": answer
+            "context": results["context"],
+            "answer": results["answer"]
         })
-        return context, answer
+        return results["context"], results["answer"]
 
     
 if __name__ == "__main__":
