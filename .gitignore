@@ -1,4 +1,4 @@
 api_keys
-__pycache__/*
+__pycache__/
 docker/milvus/volumes
-db/*
+db/
