@@ -1,0 +1,27 @@
+database:
+  storage: 'milvus'
+
+agent:
+  model:
+    type: "openai"
+    model: "gpt-4o-mini-2024-07-18"
+    temperature: 0
+
+retriever:
+  compressor:
+    type: "RankLLMRerank"
+    model: "gpt-4o-mini-2024-07-18"
+  type: "similarity_search"
+  search_kwargs:
+    k: 20
+    param:
+      ef: 30
+  template: |
+    You are an assistant for question-answering tasks.
+    Use the following pieces of retrieved context to answer the question.
+    If you don't know the answer, just say that you don't know.
+    Use three sentences maximum and keep the answer concise.
+    Question: {question}
+    Context: {context}
+    Answer:
+  collection: "HFCTF"
