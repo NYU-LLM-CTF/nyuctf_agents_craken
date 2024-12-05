@@ -4,24 +4,34 @@ database:
 agent:
   model:
     type: "openai"
-    model: "gpt-4o-mini-2024-07-18"
+    name: "gpt-4o-mini-2024-07-18"
     temperature: 0
 
-retriever:
-  compressor_type: "RankLLMRerank"
-  compressor_model: "gpt-4o-mini-2024-07-18"
-  retriever_type: "similarity_search"
-  retriever_params:
-    k: 20
-    ef: 30
-  template: |
-    You are an assistant for question-answering tasks.
-    Use the following pieces of retrieved context to answer the question.
-    If you don't know the answer, just say that you don't know.
-    Use three sentences maximum and keep the answer concise.
-    Question: {question}
-    Context: {context}
-    Answer:
+retrieval:
+  reranker:
+    type: "RankLLMRerank"
+    model: "gpt-4o-mini-2024-07-18"
+  compressor:
+    type: "LLMChainExtractor"
+    retriever: "ContextualCompressionRetriever"
+  retriever:
+    type: "similarity_search"
+    search_type: "similarity"
+    params:
+      k: 20
+      ef: 30
+  template: 
+    qa: |
+      You are an assistant for question-answering tasks.
+      Use the following pieces of retrieved context to answer the question.
+      If you don't know the answer, just say that you don't know.
+      Use three sentences maximum and keep the answer concise.
+      Question: {question}
+      Context: {context}
+      Answer:
   collection: "HFCTF"
 
-features: ~
+features:
+  search_params: False
+  rerank: False
+  compressor: False

@@ -18,6 +18,7 @@ from tqdm import tqdm
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_milvus import Milvus
+from rag_config import RAGConfig
 # from langchain.prompts import ChatPromptTemplate
 # from langchain_openai import ChatOpenAI
 # from langchain.schema.runnable import RunnablePassthrough
@@ -134,8 +135,9 @@ class MilvusDB(BaseVectorDB):
         connections.disconnect("default")
 
 class RAGDatabase:
-    def __init__(self, database: BaseVectorDB) -> None:
+    def __init__(self, database: BaseVectorDB, config={}) -> None:
         self.vector_db = database
+        self.config = config
 
     def _download_data(self, url=None, path=None) -> None:
         if path:
