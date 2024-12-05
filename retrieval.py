@@ -29,12 +29,20 @@ class RAGRetrieval:
     def __init__(self, llm=None, config={}) -> None:
         self.llm = llm
         self.config = config
-        self.database = RAGDatabase(database=MilvusDB() if config.db_config.storage == 'milvus' else WeaviateDB(), config=config)
+        self.database = RAGDatabase(self._setup_db(self.config.db_config.storage), config=config)
         self.compresstion_retriever = None
         self.graph_builder = StateGraph(State).add_sequence([self.retrieve, self.generate])
         self.graph_builder.add_edge(START, "retrieve")
         self.graph = self.graph_builder.compile()
         self.wrap = RetrieverWrap()
+
+    def _setup_db(self, db_storage):
+        if db_storage == "milvus":
+            return MilvusDB()
+        elif db_storage == "weaviate":
+            return WeaviateDB()
+        else:
+            return MilvusDB
 
     def _create_compressor(self, compressor: str):
         if compressor == "RankLLMRerank":
