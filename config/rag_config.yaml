@@ -5,7 +5,7 @@ agent:
   model:
     type: "openai"
     name: "gpt-4o-mini-2024-07-18"
-    temperature: 0
+    temperature: 1
 
 retrieval:
   reranker:
