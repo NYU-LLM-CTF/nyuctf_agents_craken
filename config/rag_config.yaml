@@ -8,14 +8,12 @@ agent:
     temperature: 0
 
 retriever:
-  compressor:
-    type: "RankLLMRerank"
-    model: "gpt-4o-mini-2024-07-18"
-  type: "similarity_search"
-  search_kwargs:
+  compressor_type: "RankLLMRerank"
+  compressor_model: "gpt-4o-mini-2024-07-18"
+  retriever_type: "similarity_search"
+  retriever_params:
     k: 20
-    param:
-      ef: 30
+    ef: 30
   template: |
     You are an assistant for question-answering tasks.
     Use the following pieces of retrieved context to answer the question.
@@ -25,3 +23,5 @@ retriever:
     Context: {context}
     Answer:
   collection: "HFCTF"
+
+features: ~
