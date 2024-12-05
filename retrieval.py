@@ -4,7 +4,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
-from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
@@ -22,7 +21,7 @@ class RAGRetrieval:
         self.llm = llm
         self.prompt = None
         self.template = None
-        self.compressor = LLMChainExtractor.from_llm(llm)
+        # self.compressor = LLMChainExtractor.from_llm(llm)
         self.database = RAGDatabase(database=MilvusDB() if db_type == 'milvus' else WeaviateDB())
         self.vector_store = None
         self.compressor = RankLLMRerank(top_n=3, model="gpt", gpt_model="gpt-4o-mini-2024-07-18")

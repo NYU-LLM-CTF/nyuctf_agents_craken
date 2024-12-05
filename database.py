@@ -232,7 +232,7 @@ class RAGDatabase:
                     docs_processed_unique.append(doc)
         self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
 
-    def load_queries(self, collection=None) -> None:
+    def load_json(self, collection=None) -> None:
         pass
     
     def get_db(self):
