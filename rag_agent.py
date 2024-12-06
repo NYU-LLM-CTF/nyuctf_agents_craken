@@ -52,4 +52,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     agent = RagAgent(config=RAGConfig(config_path=args.config))
     context, answer = agent.rag_generate("How to use huggingface pip", collection="HFCTF")
+    # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
     print(answer)

@@ -30,7 +30,6 @@ class RAGRetrieval:
         self.llm = llm
         self.config = config
         self.database = RAGDatabase(self._setup_db(self.config.db_config.storage), config=config)
-        self.compresstion_retriever = None
         self.graph_builder = StateGraph(State).add_sequence([self.retrieve, self.generate])
         self.graph_builder.add_edge(START, "retrieve")
         self.graph = self.graph_builder.compile()
@@ -47,8 +46,12 @@ class RAGRetrieval:
     def _create_compressor(self, compressor: str):
         if compressor == "RankLLMRerank":
             if self.config.retrieval_config.reranker_model.startswith("gpt"):
-                self.wrap.compressor = RankLLMRerank(top_n=3, model="gpt", gpt_model=self.config.retrieval_config.reranker_model)
-                return
+                self.wrap.compressor = RankLLMRerank(top_n=self.config.retrieval_config.reranker_n, 
+                                                     model="gpt", gpt_model=self.config.retrieval_config.reranker_model)
+            else:
+                self.wrap.compressor = RankLLMRerank(top_n=self.config.retrieval_config.reranker_n, 
+                                                     model=self.config.retrieval_config.reranker_model)
+            return
         if compressor == "LLMChainExtractor":
             self.wrap.compressor = LLMChainExtractor.from_llm(self.llm)
             return
@@ -67,10 +70,10 @@ class RAGRetrieval:
 
     def _create_retriever(self):
         if self.config.feature_config.search_params:
-            self.wrap.retriever = self.wrap.vector_store.as_retriever(self.config.retrieval_config.retriever_search, 
-                                                           self.config.retrieval_config.retriever_params)
+            self.wrap.retriever = self.wrap.vector_store.as_retriever(search_type=self.config.retrieval_config.retriever_search, 
+                                                           search_kwargs=self.config.retrieval_config.retriever_params)
         else:
-            self.wrap.retriever = self.wrap.vector_store.as_retriever(self.config.retrieval_config.retriever_search) 
+            self.wrap.retriever = self.wrap.vector_store.as_retriever(search_type=self.config.retrieval_config.retriever_search) 
 
     def _create_template(self, template_str: str=None):
         if not template_str:
@@ -79,18 +82,18 @@ class RAGRetrieval:
         self.wrap.template = ChatPromptTemplate.from_template(self.wrap.prompt)
 
     def _search(self, question):
-        if self.config.retrieval_config.retriever_type == "similarity_search":
-            return self.wrap.vector_store.similarity_search(question)
         if self.config.feature_config.rerank:
-            self._create_retriever(self.wrap.vector_store)
+            self._create_retriever()
             self._create_compressor(self.config.retrieval_config.reranker_type)
             self._create_cretriever(self.config.retrieval_config.compressor_retriever)
             return self.wrap.cretriever.invoke(question)
         if self.config.feature_config.compressor:
-            self._create_retriever(self.wrap.vector_store)
+            self._create_retriever()
             self._create_compressor(self.config.retrieval_config.compressor_type)
             self._create_cretriever(self.config.retrieval_config.compressor_retriever)
             return self.wrap.cretriever.invoke(question)
+        if self.config.retrieval_config.retriever_type == "similarity_search":
+            return self.wrap.vector_store.similarity_search(question)
 
     def retrieve(self, state: State):
         docs = self._search(state["question"])

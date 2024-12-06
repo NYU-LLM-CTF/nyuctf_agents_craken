@@ -44,5 +44,5 @@ retrieval:
 
 features:
   search_params: False
-  rerank: False
+  rerank: True
   compressor: False

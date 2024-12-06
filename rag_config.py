@@ -74,7 +74,7 @@ class RAGConfig:
         self.feature_config = FeatureConfig(
             rerank=self.config_yaml.get("features", {}).get("rerank", False),
             compressor=self.config_yaml.get("features", {}).get("compressor", False),
-            search_params=self.config_yaml.get("features", {}).get("compressor", False)
+            search_params=self.config_yaml.get("features", {}).get("search_params", False)
         )
     
     def _load_config(self, path):
