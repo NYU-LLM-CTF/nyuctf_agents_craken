@@ -11,6 +11,7 @@ retrieval:
   reranker:
     type: "RankLLMRerank"
     model: "gpt-4o-mini-2024-07-18"
+    top_n: 3
   compressor:
     type: "LLMChainExtractor"
     retriever: "ContextualCompressionRetriever"
@@ -33,5 +34,5 @@ retrieval:
 
 features:
   search_params: False
-  rerank: False
+  rerank: True
   compressor: False

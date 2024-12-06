@@ -15,6 +15,7 @@ class AgentConfig:
 class RetrievalConfig:
     reranker_type: str
     reranker_model: str
+    reranker_n: int
     compressor_type: str
     compressor_retriever: str
     retriever_type: str
@@ -51,6 +52,7 @@ class RAGConfig:
         self.retrieval_config = RetrievalConfig(
             reranker_type=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("type", "RankLLMRerank"),
             reranker_model=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("model", "gpt-4o-mini-2024-07-18"),
+            reranker_n=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("top_n", 3),
             compressor_type=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("type", "LLMChainExtractor"),
             compressor_retriever=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("retriever", "ContextualCompressionRetriever"),
             retriever_type=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("type", "similarity_search"),
@@ -62,7 +64,7 @@ class RAGConfig:
         self.feature_config = FeatureConfig(
             rerank=self.config_yaml.get("features", {}).get("rerank", False),
             compressor=self.config_yaml.get("features", {}).get("compressor", False),
-            search_params=self.config_yaml.get("features", {}).get("compressor", False)
+            search_params=self.config_yaml.get("features", {}).get("search_params", False)
         )
     
     def _load_config(self, path):
