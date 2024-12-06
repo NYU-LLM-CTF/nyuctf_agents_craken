@@ -49,7 +49,7 @@ class RAGRetrieval:
                 self.wrap.compressor = RankLLMRerank(top_n=self.config.retrieval_config.reranker_top_n, 
                                                      model="gpt", gpt_model=self.config.retrieval_config.reranker_model)
             else:
-                self.wrap.compressor = RankLLMRerank(top_n=self.config.retrieval_config.reranker_n, 
+                self.wrap.compressor = RankLLMRerank(top_n=self.config.retrieval_config.reranker_top_n, 
                                                      model=self.config.retrieval_config.reranker_model)
             return
         if compressor == "LLMChainExtractor":
