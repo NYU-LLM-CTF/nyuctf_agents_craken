@@ -14,7 +14,10 @@ langchain-openai
 langchain-anthropic
 langchain-weaviate
 ragatouille
+rank-llm==0.12.8
 weaviate-client
+pymilvus==2.5.0
 torch==2.0.1
 langgraph
 langchain_milvus
+rank_llm

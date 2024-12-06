@@ -18,6 +18,7 @@ from tqdm import tqdm
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_milvus import Milvus
+from rag_config import RAGConfig
 # from langchain.prompts import ChatPromptTemplate
 # from langchain_openai import ChatOpenAI
 # from langchain.schema.runnable import RunnablePassthrough
@@ -134,10 +135,11 @@ class MilvusDB(BaseVectorDB):
         connections.disconnect("default")
 
 class RAGDatabase:
-    def __init__(self, database: BaseVectorDB) -> None:
+    def __init__(self, database: BaseVectorDB, config={}) -> None:
         self.vector_db = database
+        self.config = config
 
-    def __download_data(self, url=None, path=None) -> None:
+    def _download_data(self, url=None, path=None) -> None:
         if path:
             res = requests.get(url)
             with open(path, "w") as f:
@@ -160,7 +162,7 @@ class RAGDatabase:
             return
         if validators.url(path):
             print("URL Found, start downloading...")
-            path = self.__download_data(url=path)
+            path = self._download_data(url=path)
             is_url = True
         loader = TextLoader(path)
         documents = loader.load()
@@ -232,7 +234,7 @@ class RAGDatabase:
                     docs_processed_unique.append(doc)
         self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
 
-    def load_queries(self, collection=None) -> None:
+    def load_json(self, collection=None) -> None:
         pass
     
     def get_db(self):

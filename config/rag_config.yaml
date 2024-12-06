@@ -1,0 +1,48 @@
+database:
+  storage: 'milvus'
+  config:
+    # IVF_FLAT/HNSW
+    index_type: "IVF_FLAT"  
+    # L2/COSINE
+    metric_type: "L2"        
+
+agent:
+  model:
+    type: "openai"
+    name: "gpt-4o-mini-2024-07-18"
+    temperature: 1
+
+retrieval:
+  reranker:
+    type: "RankLLMRerank"
+    model: "gpt-4o-mini-2024-07-18"
+    top_n: 3    
+    threshold: 0.3   
+  compressor:
+    type: "LLMChainExtractor"
+    retriever: "ContextualCompressionRetriever"
+    parameters:
+      max_length: 256 
+  retriever:
+    # similarity_search/MMR
+    type: "similarity_search"
+    # similarity/hybrid/bm25'
+    search_type: "similarity"
+    params:
+      k: 20
+      ef: 30
+  template: 
+    qa: |
+      You are an assistant for question-answering tasks.
+      Use the following pieces of retrieved context to answer the question.
+      If you don't know the answer, just say that you don't know.
+      Use three sentences maximum and keep the answer concise.
+      Question: {question}
+      Context: {context}
+      Answer:
+  collection: "HFCTF"
+
+features:
+  search_params: False
+  rerank: True
+  compressor: False
