@@ -49,7 +49,9 @@ class RAGConfig:
         self.config_yaml = self._load_config(config_path)
         self.db_config = DatabaseConfig(
             storage=self.config_yaml.get("database", {}).get("storage", "milvus"),
+            # TODO implement
             index_type=self.config_yaml.get("database", {}).get("config", {}).get("index_type", "IVF_FLAT"),
+            # TODO implement
             metric_type=self.config_yaml.get("database", {}).get("config", {}).get("metric_type", "L2")
         )
         self.agent_config = AgentConfig(
@@ -61,9 +63,11 @@ class RAGConfig:
             reranker_type=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("type", "RankLLMRerank"),
             reranker_model=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("model", "gpt-4o-mini-2024-07-18"),
             reranker_top_n=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("top_n", 3),
+            # TODO implement
             reranker_threshold=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("threshold", 0.3),
             compressor_type=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("type", "LLMChainExtractor"),
             compressor_retriever=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("retriever", "ContextualCompressionRetriever"),
+            # TODO implement
             compressor_parameters=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("parameters", {"max_length": 256}),
             retriever_type=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("type", "similarity_search"),
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
