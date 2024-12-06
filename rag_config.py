@@ -4,6 +4,8 @@ from dataclasses import dataclass
 @dataclass
 class DatabaseConfig:
     storage: str
+    index_type: str
+    metric_type: str
 
 @dataclass
 class AgentConfig:
@@ -15,9 +17,11 @@ class AgentConfig:
 class RetrievalConfig:
     reranker_type: str
     reranker_model: str
-    reranker_n: int
+    reranker_top_n: int
+    reranker_threshold: float
     compressor_type: str
     compressor_retriever: str
+    compressor_parameters: dict
     retriever_type: str
     retriever_search: str
     retriever_params: dict
@@ -43,7 +47,11 @@ Answer:
 class RAGConfig:
     def __init__(self, config_path):
         self.config_yaml = self._load_config(config_path)
-        self.db_config = DatabaseConfig(storage=self.config_yaml.get("database", {}).get("storage", "milvus"))
+        self.db_config = DatabaseConfig(
+            storage=self.config_yaml.get("database", {}).get("storage", "milvus"),
+            index_type=self.config_yaml.get("database", {}).get("config", {}).get("index_type", "IVF_FLAT"),
+            metric_type=self.config_yaml.get("database", {}).get("config", {}).get("metric_type", "L2")
+        )
         self.agent_config = AgentConfig(
             model_type=self.config_yaml.get("agent", {}).get("model", {}).get("type", "openai"),
             model_name=self.config_yaml.get("agent", {}).get("model", {}).get("name", "gpt-4o-mini-2024-07-18"),   
@@ -52,9 +60,11 @@ class RAGConfig:
         self.retrieval_config = RetrievalConfig(
             reranker_type=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("type", "RankLLMRerank"),
             reranker_model=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("model", "gpt-4o-mini-2024-07-18"),
-            reranker_n=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("top_n", 3),
+            reranker_top_n=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("top_n", 3),
+            reranker_threshold=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("threshold", 0.3),
             compressor_type=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("type", "LLMChainExtractor"),
             compressor_retriever=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("retriever", "ContextualCompressionRetriever"),
+            compressor_parameters=self.config_yaml.get("retrieval", {}).get("compressor", {}).get("parameters", {"max_length": 256}),
             retriever_type=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("type", "similarity_search"),
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
             retriever_params=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("params", {"k": 20, "ef": 30}),
