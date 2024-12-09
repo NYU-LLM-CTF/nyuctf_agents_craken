@@ -1,0 +1,363 @@
+# Notoriously Tricky Login Mess (Part 1)
+> We found out a user account has been compromised on our network. We took a packet capture of the time that we believe the remote login happened. Can you find out what the username of the compromised account is?
+
+> swampCTF{username}
+
+## About the Challenge
+We got a `pcapng` file that contains winrm traffic
+
+
+[Image extracted text: NO
+Time
+source
+Destination
+protocoi
+Lengtr
+Lettover Capt
+Into
+14
+2024-02-24 01:32:14.632747
+10.9.254.6
+239.255.255.250
+SSDP
+201
+M-SEARCH
+* HTTP/1.1
+15
+2024-02-24 01:32:15.632614
+10.9.254.6
+239.255.255.250
+SSDP
+196
+M-SEARCH
+* HTTP/1.1
+16
+2024-02-24 01:32:15.633248
+10. 9.254.6
+239.255.255.250
+SSDP
+196
+M-SEARCH
+* HTTP/1.1
+17
+2024-02-24 01:32:15.633282
+10.9.254.6
+239.255.255.250
+SSDP
+201
+M-SEARCH
+* HTTP/1.1
+18
+2024-02-24 01:32:21.151723
+10. 9.254.6
+10. 10.0. 122
+TCP
+60
+55338
+5985
+[SYN]
+Seq-0 Win-64240
+Len-0 MSS-1460 SACK_PERM TSva -2409759096 TSecr-0 WS-128
+19
+2024-02-24
+01:32:21.197404
+10.10.0.122
+10.9.254.6
+TCP
+60
+5985
+55338 [SYN ,
+ACK]
+Seq-0 Ack-1
+Win-65535 Len-0 MSS-1360 WS-256 SACK_PERM TSval-147778
+20
+2024-02-24 01:32:21.197502
+10. 9.254.6
+10.10.0.122
+TCP
+52
+55338
+5985
+[ACK]
+Seq=1 Ack-1 Win-64256 Len-0 TSva -2409759142
+TSecr-147778
+21
+2024-02-24 01:32:21.198216
+10. 9.254.6
+10. 10. 0. 122
+HTTP
+358
+POST
+Zwsman HTTPT1. 1
+NTLMSSP_NEGOTIATE
+22
+2024-02-24 01:32:21.268793
+10.10.0.122
+10. 9.254.6
+HTTP
+506
+HTTP/1.1 401
+NTLMSSP_CHALLENGE
+23
+2024-02-24
+01:32:21.268820
+10. 9.254.6
+10.10.0.122
+TCP
+52
+55338
+5985
+[AcK]
+Seq-307
+Ack-455 Win-64128 Len-0 TSval-2409759213 TSecr-147849
+24
+2024-02-24 01:32:21.272544
+10.9.254.6
+10.10.0.122
+HTTP
+750
+POST
+Iwsman HTTP /1.1
+NTLMSSP_AUTH,
+User:
+Administrator
+25
+2024-02-24 01:32:21.322886
+10.10.0.122
+10.9.254.6
+HTTP
+156
+HTTP/1.1 200
+26
+2024-02-24 01:32:21.325976
+10. 9.254.6
+10.10.0.122
+TCP
+1400
+55338
+5985
+[AcK]
+Seq-1005 Ack-559 Win-64128 Len-1348 TSval-2409759271
+TSecr-147900   [TCP
+27
+2024-02-24
+01:32:21.325981
+10.9.254.6
+10.10.0.122
+HTTP
+756
+POST
+Iwsman HTTP/1.1
+(application/http-spnego-session-encrypted)
+28
+2024-02-24
+01:32:21.371538
+10.10.0.122
+10.9.254.6
+TCP
+52
+5985
+55338
+[ACK]
+Seq-559 Ack-3057
+Win-2097408 Len-0 TSval-147953 TSecr-2409759271
+29
+2024-02-24 01:32:21.375910
+10.10.0.122
+10. 9.254.6
+TCP
+1400
+5985
+55338
+[AcK]
+Seq-559 Ack-3057 Win-2097408 Len-1348 TSval-147953 TSecr-2409759271
+[TCH
+30
+2024-02-24 01:32:21.375932
+10.10.0.122
+10.9.254.6
+TCP
+1400
+5985
+55338
+[ACK] Seq-1907
+Ack-3057
+Win-2097408
+Len-1348 TSval-147953 TSecr-2409759271
+[Td
+31
+2024-02-24 01:32:21.375941
+10.10.0.122
+10. 9.254.6
+HTTP
+856
+HTTP/1.1 200
+(application/http-spnego-session-encrypted)
+32
+2024-02-24 01:32:21.376077
+10.9.254.6
+10.10.0.122
+TCP
+52
+55338
+5985
+IACKI
+Sea=3057 Ack-4059 Win-64128 Len-0 TSval-2409759321 TSecr-147953]
+
+
+## How to Solve?
+To solve this chall, im using `http` filter and then sort by `info`
+
+
+[Image extracted text: 24
+2024-02-24
+01:32:21.272544
+10. 9.254.6
+10.10.0.122
+HTTP
+750
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH ,
+User:
+Administrator
+133
+2024-02-24
+01:33:16.595461
+10. 9.254.6
+10.10.0.122
+HTTP
+750
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH, User:
+|Administrator
+216
+2024-02-24 01:33:34.169799
+10. 9.254.6
+10.10.0.122
+HTTP
+750
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH, User:
+|Administrator
+375
+2024-02-24
+01:38:54.245102
+10.9.254.6
+10.10.0.122
+HTTP
+750
+POST
+Iwsman HTTP/1.1
+NTLMSSP_AUTH, User:
+|Administrator
+11572
+2024-02-24
+01:42:58.656448
+10.9.254.6
+10.10.0.122
+HTTP
+750
+POST
+Iwsman HTTP/1.1
+NTLMSSP_AUTH, User:
+|Administrator
+11611
+2024-02-24
+01:42:59.267673
+10.9.254.6
+10.10.0.122
+HTTP
+750
+POST
+Iwsman HTTP/1.1
+NTLMSSP_AUTH ,
+User:
+|Administrator
+11966
+2024-02-24 01:43:25.704977
+10.9.254.6
+10.10.0.122
+HTTP
+746
+POST
+Iwsman HTTP/1.1
+NTLMSSP_AUTH,
+User:
+Iadamkadaban
+11985
+2024-02-24
+01:43:25.881417
+10.9.254.6
+10.10.0.122
+HTTP
+746
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH ,
+User:
+Iadamkadaban
+12314
+2024-02-24
+01:43:36.135997
+10.9.254.6
+10.10.0.122
+HTTP
+746
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH ,
+User:
+Iadamkadaban
+12690
+2024-02-24
+01:43:44.964002
+10.9.254.6
+10.10.0.122
+HTTP
+746
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH ,
+User:
+Iadamkadaban
+12747
+2024-02-24 01:43:45.465444
+10.9.254.6
+10.10.0.122
+HTTP
+746
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH ,
+User:
+Iadamkadaban
+12803
+2024-02-24
+01:43:48.719848
+10.9.254.6
+10.10.0.122
+HTTP
+746
+POST
+Iwsman
+HTTP/1.1
+NTLMSSP_AUTH ,
+User:
+Iadamkadaban]
+
+
+As we can see, there are 2 users (Administrator and adamkadaban)
+
+```
+swampCTF{adamkadaban}
+```
