@@ -1,8 +1,8 @@
 from database import WeaviateDB, MilvusDB, RAGDatabase, BaseVectorDB
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain_openai import OpenAIEmbeddings
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema.runnable import RunnablePassthrough
+from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
+from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.schema.output_parser import StrOutputParser
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain_core.documents import Document
@@ -158,8 +158,70 @@ class RAGRetrieval:
             q_a_pair = self.format_qa_pair(q, answer)
             q_a_pairs += "\n---\n" + q_a_pair
 
-        return answer,{"q_a_pairs": q_a_pairs}
-    
+        return answer, {"q_a_pairs": q_a_pairs}
+
+    def _generate_step_back_query(self, question: str) -> str:
+        examples = [
+            {
+                "input": "Could the members of The Police perform lawful arrests?",
+                "output": "What can the members of The Police do?",
+            },
+            {
+                "input": "Jan Sindel’s was born in what country?",
+                "output": "What is Jan Sindel’s personal history?",
+            },
+        ]
+        example_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("human", "{input}"),
+                ("ai", "{output}"),
+            ]
+        )
+        few_shot_prompt = FewShotChatMessagePromptTemplate(
+            example_prompt=example_prompt,
+            examples=examples,
+        )
+        step_back_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", """You are an expert at world knowledge. Your task is to step back and paraphrase a question to a more general form."""),
+                few_shot_prompt,
+                ("user", "{question}"),
+            ]
+        )
+        chain = (
+            step_back_prompt
+            | self.llm
+            | StrOutputParser()
+        )
+        step_back_query = chain.invoke({"question": question})
+        return step_back_query
+
+    def _retrieve_step_back_context(self, question: str, step_back_query: str) -> dict:
+        response_prompt_template = """You are an expert of world knowledge. I am going to ask you a question. Your response should synthesize both the original and paraphrased contexts.
+        Context from the original question:
+        {normal_context}
+        Context from the paraphrased question:
+        {step_back_context}
+        Original Question: {question}
+        Synthesized Answer:"""
+
+        response_prompt = ChatPromptTemplate.from_template(response_prompt_template)
+        chain = (
+            {
+                "normal_context": RunnableLambda(lambda x: x["question"]) | self.wrap.retriever,
+                "step_back_context": step_back_query | self.wrap.retriever,
+                "question": lambda x: x["question"],
+            }
+            | response_prompt
+            | self.llm
+            | StrOutputParser()
+        )
+
+        result = chain.invoke({"question": question})
+        return result
+
+
+
     def _search(self, question):
         if self.config.feature_config.rerank:
             self._create_retriever()
@@ -191,6 +253,15 @@ class RAGRetrieval:
             results = [self._search(query) for query in queries]
             unique_docs = self._reciprocal_rank_fusion(results)
             return {"context": unique_docs}
+        if self.config.feature_config.decomposition:
+            sub_questions = self._decompose_question(state["question"])
+            answer,q_a_results = self._answer_sub_questions(sub_questions)
+            return {"context": q_a_results["q_a_pairs"], "answer": answer}
+        if self.config.feature_config.step_back:
+            step_back_query = self._generate_step_back_query(state["question"])
+            synthesized_result = self._retrieve_step_back_context(state["question"], step_back_query)
+            return {"context": synthesized_result["normal_context"], "answer": synthesized_result["step_back_context"]}
+
         else:
             docs = self._search(state["question"])
             return {"context": docs}
