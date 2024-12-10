@@ -46,3 +46,5 @@ features:
   search_params: False
   rerank: True
   compressor: False
+  multi_query: False
+  rag_fusion: False
