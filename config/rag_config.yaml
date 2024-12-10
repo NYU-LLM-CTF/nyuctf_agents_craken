@@ -48,3 +48,5 @@ features:
   compressor: False
   multi_query: False
   rag_fusion: False
+  decomposition: False
+  step_back: False
