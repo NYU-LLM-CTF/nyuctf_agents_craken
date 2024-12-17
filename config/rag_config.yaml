@@ -32,7 +32,7 @@ retrieval:
       k: 20
       ef: 30
   template: 
-    qa: |
+    rag_main: |
       You are an assistant for question-answering tasks.
       Use the following pieces of retrieved context to answer the question.
       If you don't know the answer, just say that you don't know.
@@ -40,11 +40,15 @@ retrieval:
       Question: {question}
       Context: {context}
       Answer:
+    qestion: |
+      Based on the current information provided
+      Observation: {observation}
+      What should will you do next as reference to solve this CTF challenge?
   collection: "HFCTF"
 
 features:
   search_params: False
-  rerank: True
+  rerank: False
   compressor: False
   multi_query: False
   rag_fusion: False

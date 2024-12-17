@@ -35,7 +35,7 @@ class RagAgent:
         pass
 
     def rag_generate(self, query, collection, template=None):
-        results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.retrieval_config.template_qa)
+        results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
         # answer = retreval.chain_retrieve("What is decomposition?")
         self.history.append({
             "query": query,

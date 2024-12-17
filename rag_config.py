@@ -25,7 +25,8 @@ class RetrievalConfig:
     retriever_type: str
     retriever_search: str
     retriever_params: dict
-    template_qa: str
+    template_main: str
+    template_q: str
     collection: str
 
 @dataclass
@@ -33,6 +34,10 @@ class FeatureConfig:
     rerank: bool
     compressor: bool
     search_params: bool
+    multi_query: bool
+    rag_fusion: bool
+    decomposition: bool
+    step_back: bool
 
 DEFAULT_TEMPATE = """
 You are an assistant for question-answering tasks.
@@ -42,6 +47,12 @@ Use three sentences maximum and keep the answer concise.
 Question: {question}
 Context: {context}
 Answer:
+"""
+
+DEFAULT_QUESTION = """
+Based on the current information provided
+Observation: {observation}
+What should will you do next as reference to solve this CTF challenge?
 """
 
 class RAGConfig:
@@ -72,13 +83,18 @@ class RAGConfig:
             retriever_type=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("type", "similarity_search"),
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
             retriever_params=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("params", {"k": 20, "ef": 30}),
-            template_qa=self.config_yaml.get("retrieval", {}).get("template", {}).get("qa", DEFAULT_TEMPATE),
+            template_main=self.config_yaml.get("retrieval", {}).get("template", {}).get("rag_main", DEFAULT_TEMPATE),
+            template_q=self.config_yaml.get("retrieval", {}).get("template", {}).get("question", DEFAULT_QUESTION),
             collection=self.config_yaml.get("retrieval", {}).get("collection", None)
         )
         self.feature_config = FeatureConfig(
             rerank=self.config_yaml.get("features", {}).get("rerank", False),
             compressor=self.config_yaml.get("features", {}).get("compressor", False),
-            search_params=self.config_yaml.get("features", {}).get("search_params", False)
+            search_params=self.config_yaml.get("features", {}).get("search_params", False),
+            multi_query=self.config_yaml.get("features", {}).get("multi_query", False),
+            rag_fusion=self.config_yaml.get("features", {}).get("rag_fusion", False),
+            decomposition=self.config_yaml.get("features", {}).get("decomposition", False),
+            step_back=self.config_yaml.get("features", {}).get("step_back", False)
         )
     
     def _load_config(self, path):
