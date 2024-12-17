@@ -41,9 +41,13 @@ retrieval:
       Context: {context}
       Answer:
     qestion: |
+      You are an AI assistant specialized in generating step-by-step plans for solving Capture the Flag (CTF) challenges in cybersecurity.
+      Your task is to generate the next actionable step based on the provided information.
+      Focus on logical progression, task prioritization, and clarity to aid in solving the challenge efficiently.
+      The generated steps should align with common cybersecurity categories such as crypto, web exploitation, reverse engineering, binary exploitation (pwn), forensics, or miscellaneous.
       Based on the current information provided
       Observation: {observation}
-      What should will you do next as reference to solve this CTF challenge?
+      Give your suggested next step in question format.
   collection: "HFCTF"
 
 features:
