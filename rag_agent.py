@@ -40,6 +40,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     agent = RagAgent(config=RAGConfig(config_path=args.config))
     response = agent.pre_summarization("Let's attack on this")
-    context, answer = agent.rag_generate(response, collection="HFCTF")
+    context, answer = agent.rag_generate("What is TriageBot challenge", collection="WRITEUPS")
+    # context, answer = agent.rag_generate(response, collection="HFCTF")
     # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
     print(answer)

@@ -261,8 +261,15 @@ class RAGDatabase:
 if __name__ == "__main__":
     db = RAGDatabase(MilvusDB())
     # db.load_hf(dataset="m-ric/huggingface_doc", collection="HFCTF")
-    db.get_dbwarp().delete_collection('collection_1')
+    # db.get_dbwarp().delete_collection('collection_1')
     # db.load_file(path="https://raw.githubusercontent.com/hwchase17/chat-your-data/refs/heads/master/state_of_the_union.txt", collection="TESTFILE")
     # res = db.test_query("HFCTF", "How to create an endpoint?")
     # print(res)
     # db.close()
+
+    ########## Load from directory ################
+    path = "./dataset/processed_writeups/"
+    db.load_dir(dir=path, collection="WRITEUPS")
+
+    ########## Load from HF #######################
+    # db.load_hf(dataset="m-ric/huggingface_doc", collection="HFCTF")
