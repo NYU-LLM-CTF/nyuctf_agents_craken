@@ -8,16 +8,6 @@ with open("api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
-TEST_TEMPLATE = """You are an assistant for question-answering tasks.
-Use the following pieces of retrieved context to answer the question.
-If you don't know the answer, just say that you don't know.
-Use three sentences maximum and keep the answer concise.
-Question: {question}
-Context: {context}
-Answer:
-"""
-
-# TESTLLM = ChatOpenAI(model_name="gpt-4o-mini-2024-07-18", temperature=0)
 
 class RagAgent:
     def __init__(self, api_key=OPENAI_API_KEY, config: RAGConfig={}) -> None:
@@ -28,14 +18,12 @@ class RagAgent:
         self.retrieval_alg = RAGRetrieval(llm=self.llm, config=config)
         self.history = []
 
-    def pre_summarization(self, prompt=None):
-        pass
-
-    def post_summarization(self, prompt=None):
-        pass
+    def pre_summarization(self, info, prompt=None):
+        response = self.llm.invoke(prompt if prompt else self.config.retrieval_config.template_q.format(observation=info))
+        return response.content
 
     def rag_generate(self, query, collection, template=None):
-        results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.retrieval_config.template_qa)
+        results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
         # answer = retreval.chain_retrieve("What is decomposition?")
         self.history.append({
             "query": query,
@@ -51,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", default="./config/rag_config.yaml", type=str, help="config path")
     args = parser.parse_args()
     agent = RagAgent(config=RAGConfig(config_path=args.config))
-    context, answer = agent.rag_generate("How to use huggingface pip", collection="HFCTF")
+    response = agent.pre_summarization("Let's attack on this")
+    context, answer = agent.rag_generate(response, collection="HFCTF")
     # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
     print(answer)

@@ -25,7 +25,8 @@ class RetrievalConfig:
     retriever_type: str
     retriever_search: str
     retriever_params: dict
-    template_qa: str
+    template_main: str
+    template_q: str
     collection: str
 
 @dataclass
@@ -33,6 +34,10 @@ class FeatureConfig:
     rerank: bool
     compressor: bool
     search_params: bool
+    multi_query: bool
+    rag_fusion: bool
+    decomposition: bool
+    step_back: bool
 
 DEFAULT_TEMPATE = """
 You are an assistant for question-answering tasks.
@@ -42,6 +47,16 @@ Use three sentences maximum and keep the answer concise.
 Question: {question}
 Context: {context}
 Answer:
+"""
+
+DEFAULT_QUESTION = """
+You are an AI assistant specialized in generating step-by-step plans for solving Capture the Flag (CTF) challenges in cybersecurity.
+Your task is to generate the next actionable step based on the provided information.
+Focus on logical progression, task prioritization, and clarity to aid in solving the challenge efficiently.
+The generated steps should align with common cybersecurity categories such as crypto, web exploitation, reverse engineering, binary exploitation (pwn), forensics, or miscellaneous.
+Based on the current information provided
+Observation: {observation}
+Give your suggested next step in question format.
 """
 
 class RAGConfig:
@@ -72,13 +87,18 @@ class RAGConfig:
             retriever_type=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("type", "similarity_search"),
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
             retriever_params=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("params", {"k": 20, "ef": 30}),
-            template_qa=self.config_yaml.get("retrieval", {}).get("template", {}).get("qa", DEFAULT_TEMPATE),
+            template_main=self.config_yaml.get("retrieval", {}).get("template", {}).get("rag_main", DEFAULT_TEMPATE),
+            template_q=self.config_yaml.get("retrieval", {}).get("template", {}).get("question", DEFAULT_QUESTION),
             collection=self.config_yaml.get("retrieval", {}).get("collection", None)
         )
         self.feature_config = FeatureConfig(
             rerank=self.config_yaml.get("features", {}).get("rerank", False),
             compressor=self.config_yaml.get("features", {}).get("compressor", False),
-            search_params=self.config_yaml.get("features", {}).get("search_params", False)
+            search_params=self.config_yaml.get("features", {}).get("search_params", False),
+            multi_query=self.config_yaml.get("features", {}).get("multi_query", False),
+            rag_fusion=self.config_yaml.get("features", {}).get("rag_fusion", False),
+            decomposition=self.config_yaml.get("features", {}).get("decomposition", False),
+            step_back=self.config_yaml.get("features", {}).get("step_back", False)
         )
     
     def _load_config(self, path):
