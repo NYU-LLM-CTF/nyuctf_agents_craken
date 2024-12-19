@@ -173,6 +173,30 @@ class RAGDatabase:
         if is_url:
             os.remove(path)
 
+    def load_hf_csv(self, dataset=None, collection=None,
+                    chunk_size=512, overlap=50, unique=True,
+                    text_col="text", name_col="source") -> None:
+        embeddings = OpenAIEmbeddings()
+        ds = datasets.load_dataset("csv", data_files=dataset)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+        print(list(ds.keys())[0])
+        ds = ds[list(ds.keys())[0]]
+        docs_processed = []
+        RAW_KNOWLEDGE_BASE = [
+            LangchainDocument(page_content=doc[text_col], metadata={"source": doc[name_col]})
+            for doc in tqdm(ds)
+        ]
+        for doc in RAW_KNOWLEDGE_BASE:
+            docs_processed += text_splitter.split_documents([doc])
+        if unique:
+            unique_texts = {}
+            docs_processed_unique = []
+            for doc in docs_processed:
+                if doc.page_content not in unique_texts:
+                    unique_texts[doc.page_content] = True
+                    docs_processed_unique.append(doc)
+        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
+
     def load_hf(self, dataset=None, collection=None, 
                 chunk_size=512, overlap=50, unique=True, 
                 text_col="text", name_col="source") -> None:
@@ -268,8 +292,8 @@ if __name__ == "__main__":
     # db.close()
 
     ########## Load from directory ################
-    path = "./dataset/processed_writeups/"
-    db.load_dir(dir=path, collection="WRITEUPS")
+    # path = "./dataset/processed_writeups/"
+    # db.load_dir(dir=path, collection="WRITEUPS")
 
     ########## Load from HF #######################
-    # db.load_hf(dataset="m-ric/huggingface_doc", collection="HFCTF")
+    db.load_hf_csv(dataset="./dataset/CyberNative_Code_Vulnerability_Security_DPO.csv", collection="HFCTF")
