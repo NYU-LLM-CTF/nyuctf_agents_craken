@@ -4,25 +4,21 @@ from overrides import override
 import requests
 import datasets
 import pandas as pd
-from abc import ABC, abstractmethod
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from langchain_core.documents import Document
-from pymilvus import connections, Collection, utility
-import weaviate
-from typing import List, Optional
-from langchain_community.vectorstores.utils import DistanceStrategy
 import validators
 from langchain.docstore.document import Document as LangchainDocument
 from tqdm import tqdm
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_milvus import Milvus
 from .rag_config import RAGConfig
 import csv
+from pathlib import Path
 import json
 import yaml
+from .db_backend.base import BaseVectorDB
+from .db_backend.milvus import MilvusDB
 # from langchain.prompts import ChatPromptTemplate
 # from langchain_openai import ChatOpenAI
 # from langchain.schema.runnable import RunnablePassthrough
@@ -32,111 +28,14 @@ with open("api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
-TEST_TEMPLATE = """You are an assistant for question-answering tasks.
-Use the following pieces of retrieved context to answer the question.
-If you don't know the answer, just say that you don't know.
-Use three sentences maximum and keep the answer concise.
-Question: {question}
-Context: {context}
-Answer:
-"""
-
-class BaseVectorDB(ABC):
-    def __init_subclass__(cls):
-        super().__init_subclass__()
-    
-    def __init__(self) -> None:
-        super().__init__()
-        self.client = None
-
-    @abstractmethod
-    def insert_document(self, documents: List[Document], embeddings, collection: str):
-        pass
-
-    @abstractmethod
-    def create_vector(self, collection):
-        pass
-    
-    @abstractmethod
-    def delete_collection(self, collection: str):
-        pass
-    
-    @abstractmethod
-    def create_collection(self, collection: str):
-        pass
-
-    @abstractmethod
-    def close_db(self):
-        pass
-
-class WeaviateDB(BaseVectorDB):
-    def __init__(self) -> None:
-        super().__init__()
-        self.port = 50050
-        self.host = "0.0.0.0"
-        self.grpc_port = 50051
-        self.client = weaviate.connect_to_local(
-            host=self.host,
-            port=self.port,
-            grpc_port=self.grpc_port,
-        )
-    
-    @override
-    def insert_document(self, documents: List[Document], embeddings, collection: str):
-        if self.client:
-            db = WeaviateVectorStore.from_documents(
-                documents, embeddings, distance_strategy=DistanceStrategy.COSINE, client=self.client, index_name=collection
-            )
-    
-    @override
-    def delete_collection(self, collection: str):
-        if self.client:
-            self.client.collections.delete(collection)
-
-    @override
-    def create_collection(self, collection: str):
-        if self.client:
-            self.client.collections.create(collection)
-
-    @override
-    def create_vector(self, collection):
-        return WeaviateVectorStore.from_documents([], OpenAIEmbeddings(), client=self.client, index_name=collection)
-
-    @override
-    def close_db(self):
-        self.client.close()
-
-class MilvusDB(BaseVectorDB):
-    def __init__(self) -> None:
-        super().__init__()
-        self.host = "0.0.0.0"
-        self.port = "19530"
-        self.url = "./db/ctfrag.db"
-
-    @override
-    def insert_document(self, documents: List[Document], embeddings, collection: str):
-        db = Milvus.from_documents(documents, embeddings, connection_args={"host": self.host, "port": self.port}, collection_name=collection)
-    
-    @override
-    def delete_collection(self, collection: str):
-        connections.connect("default", host=self.host, port=self.port)
-        if utility.has_collection(collection):
-            Collection(collection).drop()
-            print(f"Collection '{collection}' has been dropped.")
-        else:
-            print(f"Collection '{collection}' does not exist.")
-
-    @override
-    def create_collection(self, collection: str, documents: List[Document] = []):
-        pass
-
-    @override
-    def create_vector(self, collection):
-        return Milvus(OpenAIEmbeddings(), connection_args={"host": self.host, "port": self.port}, collection_name=collection)
-
-    @override
-    def close_db(self):
-        connections.disconnect("default")
+# TEST_TEMPLATE = """You are an assistant for question-answering tasks.
+# Use the following pieces of retrieved context to answer the question.
+# If you don't know the answer, just say that you don't know.
+# Use three sentences maximum and keep the answer concise.
+# Question: {question}
+# Context: {context}
+# Answer:
+# """
 
 class RAGDatabase:
     def __init__(self, database: BaseVectorDB, config={}) -> None:
@@ -159,6 +58,15 @@ class RAGDatabase:
             finally:
                 pass
 
+    def _parse_file(self, path, collection, embeddings, text_splitter, args):
+        if path.endswith((".csv", ".tsv", ".json", ".yaml", ".yml", ".xls", ".xlsx")):
+            self.load_multirow(path=path, collection=collection, 
+                                embeddings=embeddings, text_splitter=text_splitter, 
+                                name_field=args.get("name_field", "key"), data_field=args.get("data_field", "value"))
+        else:
+            self.load_plaintext(path=path, collection=collection, 
+                                embeddings=embeddings, text_splitter=text_splitter)
+
     # Sample args:
     # args = {
     #     "name_col": "source",
@@ -167,23 +75,38 @@ class RAGDatabase:
     #     "chunk_size": 512,
     #     "overlap": 50
     # }
-    def load_dataset(self, mode="single", path=None, args: dict = {
-        "name_field": "source",
-        "data_field": "text",
+    # text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+    # text_splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+    # embeddings = OpenAIEmbeddings()
+    def load_dataset(self, path=None, collection="default", args: dict = {
+        "name_field": "key",
+        "data_field": "value",
         "collection": "ctfrag",
         "chunk_size": 512,
-        "overlap": 50
+        "overlap": 50,
     }):
+
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=args.get("chunk_size", 512), chunk_overlap=args.get("overlap", 50))
+        embeddings = OpenAIEmbeddings()
         if not path:
             print("Please provide a url or file path")
             return
-        if mode == "single":
-            pass
-        elif mode == "batch":
-            pass
+        if not os.path.isdir(path):
+            print("Not a directory, loading single file...")
+            self._parse_file(path, collection, embeddings, text_splitter, args)
         else:
-            print("Please provide import mode: single and batch")
-            return
+            print("Directory detected, loading in batch...")
+            files = self._walk_dir(path)
+            for file in files:
+                self._parse_file(file, collection, embeddings, text_splitter, args)
+
+    def _walk_dir(self, dir):
+        all_files = []
+        for root, dirs, files in os.walk(dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                all_files.append(file_path)
+        return all_files
 
     def load_plaintext(self, path=None, collection=None, embeddings=None, text_splitter=None) -> None:
         is_url = False
@@ -277,9 +200,6 @@ class RAGDatabase:
                     docs_processed_unique.append(doc)
         self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
 
-    def load_pdf(self, path=None, collection=None, chunk_size=512, overlap=50) -> None:
-        pass
-
     # def load_hf_csv(self, dataset=None, collection=None,
     #                 chunk_size=512, overlap=50, unique=True,
     #                 text_col="text", name_col="source") -> None:
@@ -331,42 +251,39 @@ class RAGDatabase:
             text = f.read()
         return text
 
-    def load_dir(self, dir=None, collection=None, 
-                 chunk_size=512, overlap=50, unique=True, 
-                 recursive=True) -> None:
-        if not os.path.isdir(dir):
-            print("Please provide a valid directory")
-            return
-        paths = []
-        docs_processed = []
-        embeddings = OpenAIEmbeddings()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-        if recursive:
-            for root, dirs, files in os.walk(dir):
-                for filename in files:
-                    paths.append(os.path.join(root, filename))
-        else:
-            for filename in os.listdir(dir):
-                paths.append(os.path.join(dir, filename))
+    # def load_dir(self, dir=None, collection=None, 
+    #              chunk_size=512, overlap=50, unique=True, 
+    #              recursive=True) -> None:
+    #     if not os.path.isdir(dir):
+    #         print("Please provide a valid directory")
+    #         return
+    #     paths = []
+    #     docs_processed = []
+    #     embeddings = OpenAIEmbeddings()
+    #     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+    #     if recursive:
+    #         for root, dirs, files in os.walk(dir):
+    #             for filename in files:
+    #                 paths.append(os.path.join(root, filename))
+    #     else:
+    #         for filename in os.listdir(dir):
+    #             paths.append(os.path.join(dir, filename))
         
-        RAW_KNOWLEDGE_BASE = [
-            LangchainDocument(page_content=self._readdoc(path), metadata={"source": path})
-            for path in tqdm(paths)
-        ]
+    #     RAW_KNOWLEDGE_BASE = [
+    #         LangchainDocument(page_content=self._readdoc(path), metadata={"source": path})
+    #         for path in tqdm(paths)
+    #     ]
 
-        for doc in RAW_KNOWLEDGE_BASE:
-            docs_processed += text_splitter.split_documents([doc])
-        if unique:
-            unique_texts = {}
-            docs_processed_unique = []
-            for doc in docs_processed:
-                if doc.page_content not in unique_texts:
-                    unique_texts[doc.page_content] = True
-                    docs_processed_unique.append(doc)
-        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
-
-    def load_json(self, collection=None) -> None:
-        pass
+    #     for doc in RAW_KNOWLEDGE_BASE:
+    #         docs_processed += text_splitter.split_documents([doc])
+    #     if unique:
+    #         unique_texts = {}
+    #         docs_processed_unique = []
+    #         for doc in docs_processed:
+    #             if doc.page_content not in unique_texts:
+    #                 unique_texts[doc.page_content] = True
+    #                 docs_processed_unique.append(doc)
+    #     self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
     
     def get_db(self):
         return self.vector_db

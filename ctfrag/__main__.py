@@ -1,16 +1,19 @@
 import argparse
 import logging
-from .database import RAGDatabase, MilvusDB, WeaviateDB
+from .database import RAGDatabase
+from .db_backend.milvus import MilvusDB
+from .db_backend.weaviate import WeaviateDB
 
 logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser("Import RAG data")
 parser.add_argument("--database", required=True, default="milvus", choices=["milvus", "weaviate"], help="Vector database")
-parser.add_argument("--mode", required=True, default="single", choices=["batch", "single"], help="Data import model, batch or single")
 parser.add_argument("--path", required=True, help="Data path")
-parser.add_argument("--file_type", required=True, choices=["csv", "text", "pdf"], help="Data format")
-parser.add_argument("--name_col", help="Instance name column, used when import csv")
-parser.add_argument("--data_col", help="Instance data column, used when import csv")
+parser.add_argument("--collection", help="Collection to store in vector db")
+parser.add_argument("--name-col", default="key", help="Instance name column, used when import csv")
+parser.add_argument("--data-col", default="value", help="Instance data column, used when import csv")
+parser.add_argument("--chunk-size", default=512, help="Chunk size of indexing")
+parser.add_argument("--overlap", default=50, help="Overlap of indexing")
 args = parser.parse_args()
 
 if args.database == "milvus":
@@ -19,5 +22,10 @@ else:
     db_backend = WeaviateDB()
 
 db = RAGDatabase(db_backend)
-
-if 
+db.load_dataset(path=args.path, collection=args.collection, args={
+        "name_field": args.name_col,
+        "data_field": args.data_col,
+        "collection": args.collection,
+        "chunk_size": args.chunk_size,
+        "overlap": args.overlap,
+})
