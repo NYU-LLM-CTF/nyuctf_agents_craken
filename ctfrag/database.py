@@ -185,8 +185,7 @@ class RAGDatabase:
             print("Please provide import mode: single and batch")
             return
 
-
-    def load_plaintext(self, path=None, collection=None, chunk_size=512, overlap=50) -> None:
+    def load_plaintext(self, path=None, collection=None, embeddings=None, text_splitter=None) -> None:
         is_url = False
         if not path:
             print("Please provide a url for data download.")
@@ -195,16 +194,17 @@ class RAGDatabase:
             print("URL Found, start downloading...")
             path = self._download_data(url=path)
             is_url = True
+        if path.endswith(".pdf"):
+            # TODO: Implement pdf support
+            pass
         loader = TextLoader(path)
         documents = loader.load()
-        text_splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
         docs = text_splitter.split_documents(documents)
-        embeddings = OpenAIEmbeddings()
         self.vector_db.insert_document(docs, embeddings, collection)
         if is_url:
             os.remove(path)
 
-    def load_multirow(self, path=None, collection=None, chunk_size=512, overlap=50, name_field="source", data_field="text") -> None:
+    def load_multirow(self, path=None, collection=None, embeddings=None, text_splitter=None, name_field="source", data_field="text") -> None:
         is_url = False
         if not path:
             print("Please provide a url for data download.")
@@ -220,13 +220,13 @@ class RAGDatabase:
         elif path.endswith((".xlsx", ".xls")):
             df = pd.read_excel(path)
         elif path.endswith(".json"):
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, "r") as f:
                 data_dict = json.load(f)
         elif path.endswith((".yaml", ".yml")):
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, "r") as f:
                 data_dict = yaml.safe_load(f)
         else:
-            print("Unsupported file format. Only CSV, TSV, and Excel files are supported.")
+            print("Unsupported file format. Only JSON, YAML, CSV, TSV, and Excel files are supported.")
             return
         if path.endswith((".json", ".yaml", ".yml")):
             try:
@@ -240,8 +240,6 @@ class RAGDatabase:
             except KeyError as e:
                 print(f"Error: Column not found in the file - {e}")
                 return
-        text_splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-        embeddings = OpenAIEmbeddings()
         for key, value in data.items():
             document = {"page_content": value, "metadata": {"name": key}}
             docs = text_splitter.split_documents([document])
@@ -251,57 +249,82 @@ class RAGDatabase:
             os.remove(path)
             print(f"Downloaded file {path} has been removed.")
 
-    def load_hf(self, path=None, collection=None, chunk_size=512, overlap=50, name_field="source", data_field="text") -> None:
-        pass
+    def load_hf(self, dataset=None, collection=None, 
+                embeddings=None, text_splitter=None,
+                name_field="source", 
+                data_field="text", type="csv", split="train", unique=True) -> None:
+        if not dataset:
+            print("Please provide a dataset for data download.")
+            return
+        if type == "csv":
+            ds = datasets.load_dataset("csv", data_files=dataset)
+            ds = ds[list(ds.keys())[0]]
+        else:
+            ds = datasets.load_dataset(dataset, split=split)
+        docs_processed = []
+        RAW_KNOWLEDGE_BASE = [
+            LangchainDocument(page_content=doc[data_field], metadata={"source": doc[name_field]})
+            for doc in tqdm(ds)
+        ]
+        for doc in RAW_KNOWLEDGE_BASE:
+            docs_processed += text_splitter.split_documents([doc])
+        if unique:
+            unique_texts = {}
+            docs_processed_unique = []
+            for doc in docs_processed:
+                if doc.page_content not in unique_texts:
+                    unique_texts[doc.page_content] = True
+                    docs_processed_unique.append(doc)
+        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
 
     def load_pdf(self, path=None, collection=None, chunk_size=512, overlap=50) -> None:
         pass
 
-    def load_hf_csv(self, dataset=None, collection=None,
-                    chunk_size=512, overlap=50, unique=True,
-                    text_col="text", name_col="source") -> None:
-        embeddings = OpenAIEmbeddings()
-        ds = datasets.load_dataset("csv", data_files=dataset)
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-        print(list(ds.keys())[0])
-        ds = ds[list(ds.keys())[0]]
-        docs_processed = []
-        RAW_KNOWLEDGE_BASE = [
-            LangchainDocument(page_content=doc[text_col], metadata={"source": doc[name_col]})
-            for doc in tqdm(ds)
-        ]
-        for doc in RAW_KNOWLEDGE_BASE:
-            docs_processed += text_splitter.split_documents([doc])
-        if unique:
-            unique_texts = {}
-            docs_processed_unique = []
-            for doc in docs_processed:
-                if doc.page_content not in unique_texts:
-                    unique_texts[doc.page_content] = True
-                    docs_processed_unique.append(doc)
-        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
+    # def load_hf_csv(self, dataset=None, collection=None,
+    #                 chunk_size=512, overlap=50, unique=True,
+    #                 text_col="text", name_col="source") -> None:
+    #     embeddings = OpenAIEmbeddings()
+    #     ds = datasets.load_dataset("csv", data_files=dataset)
+    #     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+    #     print(list(ds.keys())[0])
+    #     ds = ds[list(ds.keys())[0]]
+    #     docs_processed = []
+    #     RAW_KNOWLEDGE_BASE = [
+    #         LangchainDocument(page_content=doc[text_col], metadata={"source": doc[name_col]})
+    #         for doc in tqdm(ds)
+    #     ]
+    #     for doc in RAW_KNOWLEDGE_BASE:
+    #         docs_processed += text_splitter.split_documents([doc])
+    #     if unique:
+    #         unique_texts = {}
+    #         docs_processed_unique = []
+    #         for doc in docs_processed:
+    #             if doc.page_content not in unique_texts:
+    #                 unique_texts[doc.page_content] = True
+    #                 docs_processed_unique.append(doc)
+    #     self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
 
-    def load_hf(self, dataset=None, collection=None, 
-                chunk_size=512, overlap=50, unique=True, 
-                text_col="text", name_col="source") -> None:
-        embeddings = OpenAIEmbeddings()
-        ds = datasets.load_dataset(dataset, split="train")
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-        docs_processed = []
-        RAW_KNOWLEDGE_BASE = [
-            LangchainDocument(page_content=doc[text_col], metadata={"source": doc[name_col]})
-            for doc in tqdm(ds)
-        ]
-        for doc in RAW_KNOWLEDGE_BASE:
-            docs_processed += text_splitter.split_documents([doc])
-        if unique:
-            unique_texts = {}
-            docs_processed_unique = []
-            for doc in docs_processed:
-                if doc.page_content not in unique_texts:
-                    unique_texts[doc.page_content] = True
-                    docs_processed_unique.append(doc)
-        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
+    # def load_hf(self, dataset=None, collection=None, 
+    #             chunk_size=512, overlap=50, unique=True, 
+    #             text_col="text", name_col="source") -> None:
+    #     embeddings = OpenAIEmbeddings()
+    #     ds = datasets.load_dataset(dataset, split="train")
+    #     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+    #     docs_processed = []
+    #     RAW_KNOWLEDGE_BASE = [
+    #         LangchainDocument(page_content=doc[text_col], metadata={"source": doc[name_col]})
+    #         for doc in tqdm(ds)
+    #     ]
+    #     for doc in RAW_KNOWLEDGE_BASE:
+    #         docs_processed += text_splitter.split_documents([doc])
+    #     if unique:
+    #         unique_texts = {}
+    #         docs_processed_unique = []
+    #         for doc in docs_processed:
+    #             if doc.page_content not in unique_texts:
+    #                 unique_texts[doc.page_content] = True
+    #                 docs_processed_unique.append(doc)
+    #     self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
     
     def _readdoc(self, path):
         with open(path, "r") as f:
