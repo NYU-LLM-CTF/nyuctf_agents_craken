@@ -167,8 +167,8 @@ class RAGRetrieval:
                 "output": "What can the members of The Police do?",
             },
             {
-                "input": "Jan Sindel’s was born in what country?",
-                "output": "What is Jan Sindel’s personal history?",
+                "input": "Jan Sindel's was born in what country?",
+                "output": "What is Jan Sindel's personal history?",
             },
         ]
         example_prompt = ChatPromptTemplate.from_messages(
