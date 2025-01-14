@@ -42,6 +42,8 @@ dependencies = [
   "rank_llm",
   "pandas",
   "pyyaml",
+  "llama-index",
+  "llama-parse",
 ]
 
 [tool.hatch.build.targets.wheel]

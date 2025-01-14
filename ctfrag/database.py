@@ -257,9 +257,6 @@ class RAGDatabase:
     def load_pdf(self, path=None, collection=None, chunk_size=512, overlap=50) -> None:
         pass
 
-    def load_json(self, path=None, collection=None, chunk_size=512, overlap=50, name_field="source", data_field="text") -> None:
-        pass
-
     def load_hf_csv(self, dataset=None, collection=None,
                     chunk_size=512, overlap=50, unique=True,
                     text_col="text", name_col="source") -> None:
