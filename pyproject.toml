@@ -40,6 +40,8 @@ dependencies = [
   "langgraph",
   "langchain_milvus",
   "rank_llm",
+  "pandas",
+  "pyyaml",
 ]
 
 [tool.hatch.build.targets.wheel]

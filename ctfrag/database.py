@@ -3,6 +3,7 @@ import tempfile
 from overrides import override
 import requests
 import datasets
+import pandas as pd
 from abc import ABC, abstractmethod
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import CharacterTextSplitter
@@ -19,6 +20,9 @@ from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_milvus import Milvus
 from .rag_config import RAGConfig
+import csv
+import json
+import yaml
 # from langchain.prompts import ChatPromptTemplate
 # from langchain_openai import ChatOpenAI
 # from langchain.schema.runnable import RunnablePassthrough
@@ -155,7 +159,34 @@ class RAGDatabase:
             finally:
                 pass
 
-    def load_file(self, path=None, collection=None, chunk_size=512, overlap=50) -> None:
+    # Sample args:
+    # args = {
+    #     "name_col": "source",
+    #     "data_col": "text",
+    #     "collection": "ctfrag",
+    #     "chunk_size": 512,
+    #     "overlap": 50
+    # }
+    def load_dataset(self, mode="single", path=None, args: dict = {
+        "name_field": "source",
+        "data_field": "text",
+        "collection": "ctfrag",
+        "chunk_size": 512,
+        "overlap": 50
+    }):
+        if not path:
+            print("Please provide a url or file path")
+            return
+        if mode == "single":
+            pass
+        elif mode == "batch":
+            pass
+        else:
+            print("Please provide import mode: single and batch")
+            return
+
+
+    def load_plaintext(self, path=None, collection=None, chunk_size=512, overlap=50) -> None:
         is_url = False
         if not path:
             print("Please provide a url for data download.")
@@ -172,6 +203,62 @@ class RAGDatabase:
         self.vector_db.insert_document(docs, embeddings, collection)
         if is_url:
             os.remove(path)
+
+    def load_multirow(self, path=None, collection=None, chunk_size=512, overlap=50, name_field="source", data_field="text") -> None:
+        is_url = False
+        if not path:
+            print("Please provide a url for data download.")
+            return
+        if validators.url(path):
+            print("URL Found, start downloading...")
+            path = self._download_data(url=path)
+            is_url = True
+        if path.endswith(".csv"):
+            df = pd.read_csv(path)
+        elif path.endswith(".tsv"):
+            df = pd.read_csv(path, sep='\t')
+        elif path.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(path)
+        elif path.endswith(".json"):
+            with open(path, "r", encoding="utf-8") as f:
+                data_dict = json.load(f)
+        elif path.endswith((".yaml", ".yml")):
+            with open(path, "r", encoding="utf-8") as f:
+                data_dict = yaml.safe_load(f)
+        else:
+            print("Unsupported file format. Only CSV, TSV, and Excel files are supported.")
+            return
+        if path.endswith((".json", ".yaml", ".yml")):
+            try:
+                data = {item[name_field]: item[data_field] for item in data_dict}
+            except KeyError as e:
+                print(f"Error: Missing key in JSON/YAML data - {e}")
+                return
+        else:
+            try:
+                data = dict(zip(df[name_field], df[data_field]))
+            except KeyError as e:
+                print(f"Error: Column not found in the file - {e}")
+                return
+        text_splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+        embeddings = OpenAIEmbeddings()
+        for key, value in data.items():
+            document = {"page_content": value, "metadata": {"name": key}}
+            docs = text_splitter.split_documents([document])
+            self.vector_db.insert_document(docs, embeddings, collection)
+        if is_url:
+            import os
+            os.remove(path)
+            print(f"Downloaded file {path} has been removed.")
+
+    def load_hf(self, path=None, collection=None, chunk_size=512, overlap=50, name_field="source", data_field="text") -> None:
+        pass
+
+    def load_pdf(self, path=None, collection=None, chunk_size=512, overlap=50) -> None:
+        pass
+
+    def load_json(self, path=None, collection=None, chunk_size=512, overlap=50, name_field="source", data_field="text") -> None:
+        pass
 
     def load_hf_csv(self, dataset=None, collection=None,
                     chunk_size=512, overlap=50, unique=True,
