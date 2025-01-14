@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ctfrag"
+version = "0.1"
+authors = [
+  { name="NYU CTF", email="nyuctf@gmail.com" },
+  { name="Minghao Shao", email="shao.minghao@nyu.edu" },
+]
+description = "Official package for CTFRAG works with LLM CTF Agent with NYU CTF Bench"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "torch==2.0.1",
+  "transformers",
+  "accelerate",
+  "bitsandbytes",
+  "langchain",
+  "sentence-transformers",
+  "openpyxl",
+  "pacmap",
+  "datasets",
+  "overrides",
+  "langchain-community",
+  "langchain-huggingface",
+  "langchain-openai",
+  "langchain-anthropic",
+  "langchain-weaviate",
+  "ragatouille",
+  "rank-llm==0.12.8",
+  "weaviate-client",
+  "pymilvus==2.5.0",
+  "langgraph",
+  "langchain_milvus",
+  "rank_llm",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["ctfrag"]

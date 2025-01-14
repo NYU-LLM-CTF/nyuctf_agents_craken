@@ -1,4 +1,4 @@
-from database import WeaviateDB, MilvusDB, RAGDatabase, BaseVectorDB
+from .database import WeaviateDB, MilvusDB, RAGDatabase, BaseVectorDB
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain_openai import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate

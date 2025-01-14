@@ -18,7 +18,7 @@ from tqdm import tqdm
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_milvus import Milvus
-from rag_config import RAGConfig
+from .rag_config import RAGConfig
 # from langchain.prompts import ChatPromptTemplate
 # from langchain_openai import ChatOpenAI
 # from langchain.schema.runnable import RunnablePassthrough

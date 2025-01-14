@@ -1,8 +1,8 @@
 import os
 import argparse
 from langchain_openai import ChatOpenAI
-from retrieval import RAGRetrieval, MilvusDB, WeaviateDB
-from rag_config import RAGConfig
+from .retrieval import RAGRetrieval, MilvusDB, WeaviateDB
+from .rag_config import RAGConfig
 
 with open("api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
