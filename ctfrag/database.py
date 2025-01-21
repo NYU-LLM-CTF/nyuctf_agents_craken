@@ -1,6 +1,5 @@
 import os
 import tempfile
-from overrides import override
 import requests
 import datasets
 import pandas as pd
@@ -10,13 +9,10 @@ from langchain_openai import OpenAIEmbeddings
 import validators
 from langchain.docstore.document import Document as LangchainDocument
 from tqdm import tqdm
-from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from .rag_config import RAGConfig
-import csv
-from pathlib import Path
 import json
 import yaml
+import pymupdf
 from .db_backend.base import BaseVectorDB
 from .db_backend.milvus import MilvusDB
 # from langchain.prompts import ChatPromptTemplate
@@ -118,8 +114,13 @@ class RAGDatabase:
             path = self._download_data(url=path)
             is_url = True
         if path.endswith(".pdf"):
-            # TODO: Implement pdf support
-            pass
+            doc = pymupdf.open(path)
+            fd, path = tempfile.mkstemp()
+            with os.fdopen(fd, 'wb') as f:
+                for page in doc:
+                    text = page.get_text().encode("utf8")
+                    f.write(text)
+                    f.write(bytes((12,)))
         loader = TextLoader(path)
         documents = loader.load()
         docs = text_splitter.split_documents(documents)
@@ -246,10 +247,10 @@ class RAGDatabase:
     #                 docs_processed_unique.append(doc)
     #     self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
     
-    def _readdoc(self, path):
-        with open(path, "r") as f:
-            text = f.read()
-        return text
+    # def _readdoc(self, path):
+    #     with open(path, "r") as f:
+    #         text = f.read()
+    #     return text
 
     # def load_dir(self, dir=None, collection=None, 
     #              chunk_size=512, overlap=50, unique=True, 

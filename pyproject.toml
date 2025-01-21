@@ -44,6 +44,7 @@ dependencies = [
   "pyyaml",
   "llama-index",
   "llama-parse",
+  "PyMuPDF",
 ]
 
 [tool.hatch.build.targets.wheel]
