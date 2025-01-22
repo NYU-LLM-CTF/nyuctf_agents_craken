@@ -9,13 +9,13 @@ database:
 agent:
   model:
     type: "openai"
-    name: "gpt-4o-mini-2024-07-18"
+    name: "gpt-4o-2024-11-20"
     temperature: 1
 
 retrieval:
   reranker:
     type: "RankLLMRerank"
-    model: "gpt-4o-mini-2024-07-18"
+    model: "gpt-4o-2024-11-20"
     top_n: 3    
     threshold: 0.3   
   compressor:

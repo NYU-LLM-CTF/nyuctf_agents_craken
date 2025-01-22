@@ -30,16 +30,18 @@ class RagAgent:
         response = self.llm.invoke(prompt if prompt else self.config.retrieval_config.template_q.format(observation=info))
         return response.content
 
-    def rag_generate(self, query, collection, template=None):
-        results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
-        # answer = retreval.chain_retrieve("What is decomposition?")
+    def rag_generate(self, query, collection, mode="graph", template=None):
+        if mode == "graph":
+            results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
+            answer = results["answer"]
+        else:
+            answer = self.retrieval_alg.chain_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
         self.history.append({
             "query": query,
             "collection": collection,
-            "context": results["context"],
-            "answer": results["answer"]
+            "answer": answer
         })
-        return results["context"], results["answer"]
+        return answer
 
     
 if __name__ == "__main__":
@@ -49,7 +51,7 @@ if __name__ == "__main__":
     agent = RagAgent(config=RAGConfig(config_path=args.config))
     response = agent.summarize_context(info=TEST_CONTEXT)
     print(response)
-    context, answer = agent.rag_generate(response, collection="writeups")
+    answer = agent.rag_generate(response, mode="chain", collection="writeups")
     # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
     # context, answer = agent.rag_generate(response, collection="HFCTF")
     # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
