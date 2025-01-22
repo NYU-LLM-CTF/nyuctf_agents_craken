@@ -20,7 +20,7 @@ from .db_backend.milvus import MilvusDB
 # from langchain.schema.runnable import RunnablePassthrough
 # from langchain.schema.output_parser import StrOutputParser
 
-with open("api_keys", "r") as f:
+with open("../api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 

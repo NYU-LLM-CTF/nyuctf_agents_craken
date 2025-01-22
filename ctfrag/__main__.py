@@ -1,8 +1,8 @@
 import argparse
 import logging
-from .database import RAGDatabase
-from .db_backend.milvus import MilvusDB
-from .db_backend.weaviate import WeaviateDB
+from ctfrag.database import RAGDatabase
+from ctfrag.db_backend.milvus import MilvusDB
+from ctfrag.db_backend.weaviate import WeaviateDB
 
 logging.basicConfig(level=logging.DEBUG)
 
