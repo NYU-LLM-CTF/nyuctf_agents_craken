@@ -7,9 +7,9 @@ from ctfrag.db_backend.weaviate import WeaviateDB
 logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser("Import RAG data")
-parser.add_argument("--database", required=True, default="milvus", choices=["milvus", "weaviate"], help="Vector database")
+parser.add_argument("--database", default="milvus", choices=["milvus", "weaviate"], help="Vector database")
 parser.add_argument("--path", required=True, help="Data path")
-parser.add_argument("--collection", help="Collection to store in vector db")
+parser.add_argument("--collection", required=True, default="default", help="Collection to store in vector db")
 parser.add_argument("--name-col", default="key", help="Instance name column, used when import csv")
 parser.add_argument("--data-col", default="value", help="Instance data column, used when import csv")
 parser.add_argument("--chunk-size", default=512, help="Chunk size of indexing")

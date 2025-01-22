@@ -14,14 +14,14 @@ import json
 import yaml
 from pathlib import Path
 import pymupdf
-from .db_backend.base import BaseVectorDB
-from .db_backend.milvus import MilvusDB
+from ctfrag.db_backend.base import BaseVectorDB
+from ctfrag.db_backend.milvus import MilvusDB
 # from langchain.prompts import ChatPromptTemplate
 # from langchain_openai import ChatOpenAI
 # from langchain.schema.runnable import RunnablePassthrough
 # from langchain.schema.output_parser import StrOutputParser
 
-with open(Path.cwd() / "api_keys", "r") as f:
+with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
@@ -33,6 +33,15 @@ with open(Path.cwd() / "api_keys", "r") as f:
 # Context: {context}
 # Answer:
 # """
+
+def find_by_name(name, items):
+    for item in items:
+        if item.__name__ == name:
+            return item
+    return None 
+
+SPLITTERS = [CharacterTextSplitter, RecursiveCharacterTextSplitter]
+EMBEDDINGS = [OpenAIEmbeddings]
 
 class RAGDatabase:
     def __init__(self, database: BaseVectorDB, config={}) -> None:
@@ -309,7 +318,9 @@ class RAGDatabase:
         #     print(doc.page_content)
 
 if __name__ == "__main__":
-    db = RAGDatabase(MilvusDB())
+    # db = RAGDatabase(MilvusDB())
+    pass
+    # print(Path(__file__).resolve().parent)
     # db.load_hf(dataset="m-ric/huggingface_doc", collection="HFCTF")
     # db.get_dbwarp().delete_collection('collection_1')
     # db.load_file(path="https://raw.githubusercontent.com/hwchase17/chat-your-data/refs/heads/master/state_of_the_union.txt", collection="TESTFILE")
@@ -322,4 +333,4 @@ if __name__ == "__main__":
     # db.load_dir(dir=path, collection="WRITEUPS")
 
     ########## Load from HF #######################
-    db.load_hf_csv(dataset="./dataset/CyberNative_Code_Vulnerability_Security_DPO.csv", collection="HFCTF")
+    # db.load_hf_csv(dataset="./dataset/CyberNative_Code_Vulnerability_Security_DPO.csv", collection="HFCTF")

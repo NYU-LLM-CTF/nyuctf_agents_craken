@@ -1,10 +1,13 @@
 import os
 import argparse
+from pathlib import Path
 from langchain_openai import ChatOpenAI
-from .retrieval import RAGRetrieval, MilvusDB, WeaviateDB
-from .rag_config import RAGConfig
+from ctfrag.retrieval import RAGRetrieval
+from ctfrag.rag_config import RAGConfig
+import warnings
+warnings.simplefilter("ignore", category=DeprecationWarning)
 
-with open("api_keys", "r") as f:
+with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
@@ -36,11 +39,11 @@ class RagAgent:
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", default="./config/rag_config.yaml", type=str, help="config path")
+    parser.add_argument("-c", "--config", default=Path(__file__).resolve().parent.parent / "config/rag_config.yaml", type=str, help="config path")
     args = parser.parse_args()
     agent = RagAgent(config=RAGConfig(config_path=args.config))
-    response = agent.pre_summarization("Let's attack on this")
-    context, answer = agent.rag_generate("What is TriageBot challenge", collection="WRITEUPS")
+    # response = agent.pre_summarization("Described ")
+    context, answer = agent.rag_generate("Find any writeups for me and describe it from the database", collection="writeups")
     # context, answer = agent.rag_generate(response, collection="HFCTF")
     # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
     print(answer)

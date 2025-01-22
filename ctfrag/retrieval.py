@@ -1,6 +1,6 @@
-from .database import WeaviateDB, MilvusDB, RAGDatabase, BaseVectorDB
-from langchain_weaviate.vectorstores import WeaviateVectorStore
-from langchain_openai import OpenAIEmbeddings
+from ctfrag.database import RAGDatabase
+from ctfrag.db_backend.milvus import MilvusDB
+from ctfrag.db_backend.weaviate import WeaviateDB
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.schema.output_parser import StrOutputParser
