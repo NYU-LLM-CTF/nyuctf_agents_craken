@@ -12,6 +12,7 @@ from tqdm import tqdm
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import json
 import yaml
+from pathlib import Path
 import pymupdf
 from .db_backend.base import BaseVectorDB
 from .db_backend.milvus import MilvusDB
@@ -20,7 +21,7 @@ from .db_backend.milvus import MilvusDB
 # from langchain.schema.runnable import RunnablePassthrough
 # from langchain.schema.output_parser import StrOutputParser
 
-with open("../api_keys", "r") as f:
+with open(Path.cwd() / "api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
