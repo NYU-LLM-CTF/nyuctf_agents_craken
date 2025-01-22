@@ -41,12 +41,16 @@ retrieval:
       Context: {context}
       Answer:
     question: |
-      You are an AI assistant specialized in generating query to a RAG system to solve Capture the Flag (CTF) challenges in cybersecurity.
-      Your task is to generate proper query for RAG database based on the provided current observation context.
-      The generated query should align with common cybersecurity categories such as crypto, web exploitation, reverse engineering, binary exploitation (pwn), forensics, or miscellaneous.
-      Based on the current observation provided
-      Observation: {observation}
-      Give your suggested query to the database.
+      You are an AI assistant specialized in generating queries for a Retrieval-Augmented Generation (RAG) system to solve Capture the Flag (CTF) challenges in cybersecurity. 
+      Below is an observation from the conversation context describing the challenge or problem at hand. Your job is to formulate **a single query** that best retrieves relevant information or solutions from the RAG database. 
+      Your query should:
+      1. Reflect the key details from the **Observation**.
+      2. Map to one (or more) of the common CTF categories: crypto, web exploitation, reverse engineering, binary exploitation (pwn), forensics, or miscellaneous.
+      3. Be concise, clear, and specific—aimed at retrieving only the most helpful references or solution steps.
+      Observation**:
+      {observation}
+      Output:
+      Provide **only** the query text. Avoid explanations or additional commentary.
   collection: "HFCTF"
 
 features:
