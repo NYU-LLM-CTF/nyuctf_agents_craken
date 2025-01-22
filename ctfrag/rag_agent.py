@@ -8,9 +8,8 @@ import warnings
 warnings.simplefilter("ignore", category=DeprecationWarning)
 
 TEST_CONTEXT = """
-Excellent! We've got the output from the Brainfuck code. 
-Looking at the output format, this appears to be RSA encryption parameters in JSON-like format. 
-We have:\n- p and q: the prime factors\n- dp and dq: CRT (Chinese Remainder Theorem) parameters\n- c: the ciphertext\n\nLet's write a Python script to decrypt this RSA using CRT parameters:
+It seems we don't have permission to install packages. 
+Let's try using Python to interpret the Brainfuck code. I'll create a simple Python script to do this:
 """
 
 with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
