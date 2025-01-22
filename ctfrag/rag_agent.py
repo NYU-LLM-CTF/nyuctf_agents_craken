@@ -7,6 +7,12 @@ from ctfrag.rag_config import RAGConfig
 import warnings
 warnings.simplefilter("ignore", category=DeprecationWarning)
 
+TEST_CONTEXT = """
+Excellent! We've got the output from the Brainfuck code. 
+Looking at the output format, this appears to be RSA encryption parameters in JSON-like format. 
+We have:\n- p and q: the prime factors\n- dp and dq: CRT (Chinese Remainder Theorem) parameters\n- c: the ciphertext\n\nLet's write a Python script to decrypt this RSA using CRT parameters:
+"""
+
 with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
     OPENAI_API_KEY = f.read().strip()
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
@@ -21,7 +27,7 @@ class RagAgent:
         self.retrieval_alg = RAGRetrieval(llm=self.llm, config=config)
         self.history = []
 
-    def pre_summarization(self, info, prompt=None):
+    def summarize_context(self, info, prompt=None):
         response = self.llm.invoke(prompt if prompt else self.config.retrieval_config.template_q.format(observation=info))
         return response.content
 
@@ -42,8 +48,10 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", default=Path(__file__).resolve().parent.parent / "config/rag_config.yaml", type=str, help="config path")
     args = parser.parse_args()
     agent = RagAgent(config=RAGConfig(config_path=args.config))
-    # response = agent.pre_summarization("Described ")
-    context, answer = agent.rag_generate("Find any writeups for me and describe it from the database", collection="writeups")
+    response = agent.summarize_context(info=TEST_CONTEXT)
+    print(response)
+    context, answer = agent.rag_generate(response, collection="writeups")
+    # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
     # context, answer = agent.rag_generate(response, collection="HFCTF")
     # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
     print(answer)
