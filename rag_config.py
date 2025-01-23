@@ -26,6 +26,10 @@ class RetrievalConfig:
     retriever_search: str
     retriever_params: dict
     template_qa: str
+    template_multi: str
+    template_decompose: str
+    template_answer_decompose: str
+    template_step_back: str
     collection: str
 
 @dataclass
@@ -33,6 +37,10 @@ class FeatureConfig:
     rerank: bool
     compressor: bool
     search_params: bool
+    multi_query: bool
+    rag_fusion: bool
+    decomposition: bool
+    step_back: bool
 
 DEFAULT_TEMPATE = """
 You are an assistant for question-answering tasks.
@@ -73,12 +81,20 @@ class RAGConfig:
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
             retriever_params=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("params", {"k": 20, "ef": 30}),
             template_qa=self.config_yaml.get("retrieval", {}).get("template", {}).get("qa", DEFAULT_TEMPATE),
+            template_multi=self.config_yaml.get("retrieval", {}).get("template", {}).get("multi_query"),
+            template_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("decompose_query"),
+            template_answer_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("answer_decompose_query"),
+            template_step_back=self.config_yaml.get("retrieval", {}).get("template", {}).get("step_back"),
             collection=self.config_yaml.get("retrieval", {}).get("collection", None)
         )
         self.feature_config = FeatureConfig(
             rerank=self.config_yaml.get("features", {}).get("rerank", False),
             compressor=self.config_yaml.get("features", {}).get("compressor", False),
-            search_params=self.config_yaml.get("features", {}).get("search_params", False)
+            search_params=self.config_yaml.get("features", {}).get("search_params", False),
+            multi_query=self.config_yaml.get("features", {}).get("multi_query", False),
+            rag_fusion=self.config_yaml.get("features", {}).get("rag_fusion", False),
+            decomposition=self.config_yaml.get("features", {}).get("decomposition", False),
+            step_back=self.config_yaml.get("features", {}).get("step_back", False)
         )
     
     def _load_config(self, path):

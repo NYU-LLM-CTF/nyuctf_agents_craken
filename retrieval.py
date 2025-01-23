@@ -84,12 +84,8 @@ class RAGRetrieval:
         self.wrap.template = ChatPromptTemplate.from_template(self.wrap.prompt)
     
     def _multi_query(self, question):
-        template = """You are an AI language model assistant. Your task is to generate five 
-                    different versions of the given user question to retrieve relevant documents from a vector 
-                    database. By generating multiple perspectives on the user question, your goal is to help
-                    the user overcome some of the limitations of the distance-based similarity search. 
-                    Provide these alternative questions separated by newlines. Original question: {question}"""
-        prompt_perspectives = ChatPromptTemplate.from_template(input_variables=["question"], template=template)
+        prompt_perspectives = ChatPromptTemplate.from_template(input_variables=["question"], template=self.config.retrieval_config.template_multi)
+        
         generate_queries = (
             prompt_perspectives 
             | self.llm
@@ -112,11 +108,7 @@ class RAGRetrieval:
         return [doc for doc, _ in reranked_results]  
 
     def _decompose_question(self, question: str) -> list[str]:
-        template = """You are a helpful assistant that generates multiple sub-questions related to an input question.
-        The goal is to break down the input into a set of sub-problems or sub-questions that can be answered individually.
-        Generate multiple search queries related to: {question}
-        Output (3 queries):"""
-        prompt_decomposition = ChatPromptTemplate.from_template(template)
+        prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.retrieval_config.template_decompose)
         generate_queries_decomposition = (
             prompt_decomposition
             | self.llm
@@ -132,16 +124,7 @@ class RAGRetrieval:
         return formatted_string.strip()
     
     def _answer_sub_questions(self, sub_questions: list[str]) -> dict:
-        template = """Here is the question you need to answer:
-            \n --- \n {question} \n --- \n
-            Here is any available background question + answer pairs:
-            \n --- \n {q_a_pairs} \n --- \n
-            Here is additional context relevant to the question: 
-            \n --- \n {context} \n --- \n
-            Use the above context and any background question + answer pairs to answer the question: \n {question}
-            """
-
-        decomposition_prompt = ChatPromptTemplate.from_template(template)
+        decomposition_prompt = ChatPromptTemplate.from_template(template=self.config.retrieval_config.template_answer_decompose)
         
         q_a_pairs = ""
         for q in sub_questions:
@@ -197,15 +180,7 @@ class RAGRetrieval:
         return step_back_query
 
     def _retrieve_step_back_context(self, question: str, step_back_query: str) -> dict:
-        response_prompt_template = """You are an expert of world knowledge. I am going to ask you a question. Your response should synthesize both the original and paraphrased contexts.
-        Context from the original question:
-        {normal_context}
-        Context from the paraphrased question:
-        {step_back_context}
-        Original Question: {question}
-        Synthesized Answer:"""
-
-        response_prompt = ChatPromptTemplate.from_template(response_prompt_template)
+        response_prompt = ChatPromptTemplate.from_template(response_prompt_template=self.config.retrieval_config.template_step_back)
         chain = (
             {
                 "normal_context": RunnableLambda(lambda x: x["question"]) | self.wrap.retriever,
