@@ -40,7 +40,6 @@ retrieval:
       Question: {question}
       Context: {context}
       Answer:
-<<<<<<< HEAD
     question: |
       You are an AI assistant specialized in generating queries for a Retrieval-Augmented Generation (RAG) system to solve Capture the Flag (CTF) challenges in cybersecurity. 
       Below is an observation from the conversation context describing the challenge or problem at hand. Your job is to formulate **a single query** that best retrieves relevant information or solutions from the RAG database. 
@@ -52,7 +51,6 @@ retrieval:
       {observation}
       Output:
       Provide **only** the query text. Avoid explanations or additional commentary.
-=======
     multi_query: |
       You are an AI language model assistant. 
       Your task is to generate five different versions of the given user question to retrieve relevant documents from a vector database. 
@@ -81,7 +79,6 @@ retrieval:
       {step_back_context}
       Original Question: {question}
       Synthesized Answer:
->>>>>>> haoran
   collection: "HFCTF"
 
 features:

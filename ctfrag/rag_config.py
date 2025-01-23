@@ -25,16 +25,12 @@ class RetrievalConfig:
     retriever_type: str
     retriever_search: str
     retriever_params: dict
-<<<<<<< HEAD:ctfrag/rag_config.py
     template_main: str
     template_q: str
-=======
-    template_qa: str
     template_multi: str
     template_decompose: str
     template_answer_decompose: str
     template_step_back: str
->>>>>>> haoran:rag_config.py
     collection: str
 
 @dataclass
@@ -94,16 +90,12 @@ class RAGConfig:
             retriever_type=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("type", "similarity_search"),
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
             retriever_params=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("params", {"k": 20, "ef": 30}),
-<<<<<<< HEAD:ctfrag/rag_config.py
             template_main=self.config_yaml.get("retrieval", {}).get("template", {}).get("rag_main", DEFAULT_TEMPATE),
             template_q=self.config_yaml.get("retrieval", {}).get("template", {}).get("question", DEFAULT_QUESTION),
-=======
-            template_qa=self.config_yaml.get("retrieval", {}).get("template", {}).get("qa", DEFAULT_TEMPATE),
             template_multi=self.config_yaml.get("retrieval", {}).get("template", {}).get("multi_query"),
             template_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("decompose_query"),
             template_answer_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("answer_decompose_query"),
             template_step_back=self.config_yaml.get("retrieval", {}).get("template", {}).get("step_back"),
->>>>>>> haoran:rag_config.py
             collection=self.config_yaml.get("retrieval", {}).get("collection", None)
         )
         self.feature_config = FeatureConfig(
