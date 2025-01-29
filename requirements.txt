@@ -25,3 +25,4 @@ rank_llm
 tiktoken
 langchainhub
 chromadb
+pymupdf
