@@ -79,6 +79,21 @@ retrieval:
       {step_back_context}
       Original Question: {question}
       Synthesized Answer:
+    retrieval_grading: |
+      You are a grader assessing relevance of a retrieved document to a user question.
+      It does not need to be a stringent test. The goal is to filter out erroneous retrievals.
+      If the document contains keyword(s) or semantic meaning related to the user question, 
+      grade it as relevant. Give a binary score 'yes' or 'no' to indicate whether the document is relevant to the question.
+    hallucination_grading: |
+      You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts. 
+      Give a binary score 'yes' or 'no'. 'Yes' means that the answer is grounded in / supported by the set of facts.
+    answer_grading: |
+      You are a grader assessing whether an answer addresses / resolves a question.
+      Give a binary score 'yes' or 'no'. 'Yes' means that the answer resolves the question.
+    question_rewriting: |
+      You are a question re-writer that converts an input question to a better version 
+      that is optimized for vectorstore retrieval. Look at the input and try to reason 
+      about the underlying semantic intent / meaning.
   collection: "HFCTF"
 
 features:
@@ -89,3 +104,7 @@ features:
   rag_fusion: False
   decomposition: False
   step_back: False
+  retrieval_grading: False
+  hallucination_grading: False
+  answer_grading: False
+  question_rewriting: False

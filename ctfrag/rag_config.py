@@ -31,6 +31,10 @@ class RetrievalConfig:
     template_decompose: str
     template_answer_decompose: str
     template_step_back: str
+    template_retrieval_grading: str
+    template_hallucination_grading: str
+    template_answer_grading: str
+    template_question_rewriting: str
     collection: str
 
 @dataclass
@@ -42,6 +46,10 @@ class FeatureConfig:
     rag_fusion: bool
     decomposition: bool
     step_back: bool
+    retrieval_grading: bool
+    hallucination_grading: bool
+    answer_grading: bool
+    question_rewriting: bool
 
 DEFAULT_TEMPATE = """
 You are an assistant for question-answering tasks.
@@ -96,6 +104,10 @@ class RAGConfig:
             template_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("decompose_query"),
             template_answer_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("answer_decompose_query"),
             template_step_back=self.config_yaml.get("retrieval", {}).get("template", {}).get("step_back"),
+            template_retrieval_grading=self.config_yaml.get("retrieval", {}).get("template", {}).get("retrieval_grading"),
+            template_hallucination_grading=self.config_yaml.get("retrieval", {}).get("template", {}).get("hallucination_grading"),
+            template_answer_grading=self.config_yaml.get("retrieval", {}).get("template", {}).get("answer_grading"),
+            template_question_rewriting=self.config_yaml.get("retrieval", {}).get("template", {}).get("question_rewriting"),
             collection=self.config_yaml.get("retrieval", {}).get("collection", None)
         )
         self.feature_config = FeatureConfig(
@@ -105,7 +117,12 @@ class RAGConfig:
             multi_query=self.config_yaml.get("features", {}).get("multi_query", False),
             rag_fusion=self.config_yaml.get("features", {}).get("rag_fusion", False),
             decomposition=self.config_yaml.get("features", {}).get("decomposition", False),
-            step_back=self.config_yaml.get("features", {}).get("step_back", False)
+            step_back=self.config_yaml.get("features", {}).get("step_back", False),
+            retrieval_grading=self.config_yaml.get("features", {}).get("retrieval_grading", False),
+            hallucination_grading=self.config_yaml.get("features", {}).get("hallucination_grading", False),
+            answer_grading=self.config_yaml.get("features", {}).get("answer_grading", False),
+            question_rewriting=self.config_yaml.get("features", {}).get("question_rewriting", False)
+            
         )
     
     def _load_config(self, path):
