@@ -4,8 +4,12 @@ from pathlib import Path
 from langchain_openai import ChatOpenAI
 from ctfrag.retrieval import RAGRetrieval
 from ctfrag.rag_config import RAGConfig
+from langchain_core._api.deprecation import LangChainDeprecationWarning
 import warnings
-warnings.simplefilter("ignore", category=DeprecationWarning)
+# os.environ["PYTHONWARNINGS"] = "ignore"
+# warnings.simplefilter("ignore", category=DeprecationWarning)
+# warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
+# warnings.filterwarnings("ignore")
 
 TEST_CONTEXT = """
 It seems we don't have permission to install packages. 

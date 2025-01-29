@@ -13,7 +13,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import json
 import yaml
 from pathlib import Path
-import pymupdf
+# import pymupdf
 from ctfrag.db_backend.base import BaseVectorDB
 from ctfrag.db_backend.milvus import MilvusDB
 # from langchain.prompts import ChatPromptTemplate
