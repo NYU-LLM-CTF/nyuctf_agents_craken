@@ -124,13 +124,14 @@ class RAGDatabase:
             path = self._download_data(url=path)
             is_url = True
         if path.endswith(".pdf"):
-            doc = pymupdf.open(path)
-            fd, path = tempfile.mkstemp()
-            with os.fdopen(fd, 'wb') as f:
-                for page in doc:
-                    text = page.get_text().encode("utf8")
-                    f.write(text)
-                    f.write(bytes((12,)))
+            pass
+            # doc = pymupdf.open(path)
+            # fd, path = tempfile.mkstemp()
+            # with os.fdopen(fd, 'wb') as f:
+            #     for page in doc:
+            #         text = page.get_text().encode("utf8")
+            #         f.write(text)
+            #         f.write(bytes((12,)))
         loader = TextLoader(path)
         documents = loader.load()
         docs = text_splitter.split_documents(documents)

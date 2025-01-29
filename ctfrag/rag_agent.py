@@ -25,6 +25,10 @@ class RagAgent:
         self.llm = ChatOpenAI(model_name=self.model, temperature=self.config.agent_config.model_temperature)
         self.retrieval_alg = RAGRetrieval(llm=self.llm, config=config)
         self.history = []
+        self.enabled = False
+    
+    def enable_retriever(self):
+        self.enabled = True
 
     def summarize_context(self, info, prompt=None):
         response = self.llm.invoke(prompt if prompt else self.config.retrieval_config.template_q.format(observation=info))
@@ -51,7 +55,7 @@ if __name__ == "__main__":
     agent = RagAgent(config=RAGConfig(config_path=args.config))
     response = agent.summarize_context(info=TEST_CONTEXT)
     print(response)
-    answer = agent.rag_generate(response, mode="chain", collection="writeups")
+    answer = agent.rag_generate(response, mode="graph", collection="writeups")
     # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
     # context, answer = agent.rag_generate(response, collection="HFCTF")
     # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
