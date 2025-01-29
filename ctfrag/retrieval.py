@@ -323,14 +323,14 @@ class RAGRetrieval:
             final_docs = self._search(state["question"])
         
         if self.config.feature_config.retrieval_grading:
-            docs = self.grade_retrieval(state["question"], final_docs)
+            final_docs = self.grade_retrieval(state["question"], final_docs)
 
         if self.config.feature_config.decomposition:
             return {"context": final_docs, "answer": final_answer}
         if self.config.feature_config.step_back:
             return {"context": final_docs, "answer": final_answer}
         else:
-            return {"context": docs}
+            return {"context": final_docs}
 
     def generate(self, state: State):
         docs_content = "\n\n".join(doc.page_content for doc in state["context"])
