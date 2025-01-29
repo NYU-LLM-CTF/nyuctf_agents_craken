@@ -22,4 +22,6 @@ torch==2.0.1
 langgraph
 langchain_milvus
 rank_llm
-overrides
+tiktoken
+langchainhub
+chromadb
