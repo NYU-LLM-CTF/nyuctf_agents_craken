@@ -7,11 +7,13 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
-from langgraph.graph import START, StateGraph
+from langgraph.graph import START, END, StateGraph
 from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
 from langchain_community.document_compressors.rankllm_rerank import RankLLMRerank
 from langchain.load import dumps, loads
 from operator import itemgetter
+from langchain_core.pydantic_v1 import BaseModel, Field
+from pprint import pprint
 
 class State(TypedDict):
     question: str
@@ -27,6 +29,19 @@ class RetrieverWrap:
         self.prompt = None
         self.template = None
 
+class GradeDocuments(BaseModel):
+    """Binary score for relevance check on retrieved documents."""
+    binary_score: str = Field(description="Documents are relevant to the question, 'yes' or 'no'")
+
+class GradeHallucinations(BaseModel):
+    """Binary score for hallucination present in generation answer."""
+    binary_score: str = Field(description="Answer is grounded in the facts, 'yes' or 'no'")
+
+class GradeAnswer(BaseModel):
+    """Binary score to assess whether the answer addresses the question."""
+    binary_score: str = Field(description="Answer addresses the question, 'yes' or 'no'")
+
+
 class RAGRetrieval:
     def __init__(self, llm=None, config={}) -> None:
         self.llm = llm
@@ -36,6 +51,10 @@ class RAGRetrieval:
         self.graph_builder.add_edge(START, "retrieve")
         self.graph = self.graph_builder.compile()
         self.wrap = RetrieverWrap()
+        self._init_retrieval_grader()
+        self._init_hallucination_grader()
+        self._init_answer_grader()
+        self._init_question_rewriter()
 
     def _setup_db(self, db_storage):
         if db_storage == "milvus":
@@ -82,6 +101,65 @@ class RAGRetrieval:
             raise ValueError("Please specify a prompt template")
         self.wrap.prompt = template_str
         self.wrap.template = ChatPromptTemplate.from_template(self.wrap.prompt)
+    
+    def _init_retrieval_grader(self):
+        grade_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", self.config.retrieval_config.template_retrieval_grading),
+                ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
+            ]
+        )
+        structured_llm_grader = self.llm.with_structured_output(GradeDocuments)
+        self.retrieval_grader = grade_prompt | structured_llm_grader
+
+    def grade_retrieval(self, question, documents):
+        relevant_docs = []
+        for doc in documents:
+            doc_text = doc.page_content
+            grading_result = self.retrieval_grader.invoke({"question": question, "document": doc_text})
+            if grading_result.binary_score.lower() == "yes":
+                relevant_docs.append(doc)
+        return relevant_docs
+    
+    def _init_hallucination_grader(self):
+        hallucination_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", self.config.retrieval_config.template_hallucination_grading),
+                ("human", "Set of facts: \n\n {documents} \n\n LLM generation: {generation}"),
+            ]
+        )
+        self.hallucination_grader = hallucination_prompt | self.llm.with_structured_output(GradeHallucinations)
+
+    def grade_hallucination(self, documents, generation):
+        docs_content = "\n\n".join(doc.page_content for doc in documents)
+        grading_result = self.hallucination_grader.invoke({"documents": docs_content, "generation": generation})
+        return grading_result.binary_score.lower() == "yes"
+
+    def _init_answer_grader(self):
+        answer_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", self.config.retrieval_config.template_answer_grading),
+                ("human", "User question: \n\n {question} \n\n LLM generation: {generation}"),
+            ]
+        )
+        self.answer_grader = answer_prompt | self.llm.with_structured_output(GradeAnswer)
+
+    def grade_answer(self, question, generation):
+        grading_result = self.answer_grader.invoke({"question": question, "generation": generation})
+        return grading_result.binary_score.lower() == "yes"
+    
+    def _init_question_rewriter(self):
+        re_write_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", self.config.retrieval_config.template_question_rewriting),
+                ("human", "Here is the initial question: \n\n {question} \n Formulate an improved question."),
+            ]
+        )
+        self.question_rewriter = re_write_prompt | self.llm | StrOutputParser()
+
+    def rewrite_question(self, question):
+        rewritten_question = self.question_rewriter.invoke({"question": question})
+        return rewritten_question
     
     def _multi_query(self, question):
         prompt_perspectives = ChatPromptTemplate.from_template(input_variables=["question"], template=self.config.retrieval_config.template_multi)
@@ -195,8 +273,6 @@ class RAGRetrieval:
         result = chain.invoke({"question": question})
         return result
 
-
-
     def _search(self, question):
         if self.config.feature_config.rerank:
             self._create_retriever()
@@ -212,6 +288,8 @@ class RAGRetrieval:
             return self.wrap.vector_store.similarity_search(question)
         
     def retrieve(self, state: State):
+        if self.config.feature_config.question_rewriting:
+            state["question"] = self.rewrite_question(state["question"])
         if self.config.feature_config.multi_query:
             questions = self._multi_query(state["question"])
             all_docs = []
@@ -220,31 +298,59 @@ class RAGRetrieval:
                 all_docs.extend(docs)
             
             unique_docs = list({doc.page_content: doc for doc in all_docs}.values())
-            return {"context": unique_docs}
+            final_docs=unique_docs
         if self.config.feature_config.rag_fusion:
             questions = self._multi_query(state["question"])
 
             queries = questions.invoke({"question": state["question"]})
             results = [self._search(query) for query in queries]
             unique_docs = self._reciprocal_rank_fusion(results)
-            return {"context": unique_docs}
+            final_docs=unique_docs
         if self.config.feature_config.decomposition:
             sub_questions = self._decompose_question(state["question"])
             answer,q_a_results = self._answer_sub_questions(sub_questions)
-            return {"context": q_a_results["q_a_pairs"], "answer": answer}
+            final_docs=q_a_results["q_a_pairs"]
+            final_answer=answer
+            
         if self.config.feature_config.step_back:
             step_back_query = self._generate_step_back_query(state["question"])
             synthesized_result = self._retrieve_step_back_context(state["question"], step_back_query)
+            final_docs=synthesized_result["normal_context"]
+            final_answer=synthesized_result["step_back_context"]
             return {"context": synthesized_result["normal_context"], "answer": synthesized_result["step_back_context"]}
 
         else:
-            docs = self._search(state["question"])
+            final_docs = self._search(state["question"])
+        
+        if self.config.feature_config.retrieval_grading:
+            docs = self.grade_retrieval(state["question"], final_docs)
+
+        if self.config.feature_config.decomposition:
+            return {"context": final_docs, "answer": final_answer}
+        if self.config.feature_config.step_back:
+            return {"context": final_docs, "answer": final_answer}
+        else:
             return {"context": docs}
 
     def generate(self, state: State):
         docs_content = "\n\n".join(doc.page_content for doc in state["context"])
         messages = self.wrap.template.invoke({"question": state["question"], "context": docs_content})
         response = self.llm.invoke(messages)
+        if self.config.feature_config.hallucination_grading:
+            grounded_content = self.grade_hallucination(state["context"], response)
+
+            if not grounded_content:
+                return {
+                    "error": "The response contains no verified factual content.",
+                    "suggestion": "Consider refining your query for more accurate results."
+                }
+        if self.config.feature_config.answer_grading:
+            is_relevant = self.grade_answer(state["question"], grounded_content)
+            if not is_relevant:
+                return {
+                    "error": "The response does not directly answer the question.",
+                    "suggestion": "Consider rephrasing your question or asking for specific details."
+                }
         return {"answer": response.content}
     
     def graph_retrieve(self, query, collection, template):
@@ -265,7 +371,121 @@ class RAGRetrieval:
         )
         result = rag_chain.invoke(query)
         return result
+
+    def retrieve_node(state: State):
+        print("---RETRIEVE NODE---")
+        retrieval_result = RAGRetrieval().retrieve(state)
+        state["context"] = retrieval_result["context"]
+        return state
+
+    def generate_node(state: State):
+        print("---GENERATE NODE---")
+        result = RAGRetrieval().generate(state)
+        state["answer"] = result["answer"]
+        return state
+
+    def grade_documents_node(state: State):
+        print("---GRADE DOCUMENTS NODE---")
+        question = state["question"]
+        documents = state["context"]
+        filtered_docs = RAGRetrieval().grade_retrieval(question, documents)
+        state["context"] = filtered_docs
+        return state
+
+    def transform_query_node(state: State):
+        print("---TRANSFORM QUERY NODE---")
+        question = state["question"]
+        rewritten_question = RAGRetrieval().rewrite_question(question)
+        state["question"] = rewritten_question
+        return state
+
+    def decide_to_generate(state: State):
+        print("---ASSESS GRADED DOCUMENTS---")
+        documents = state["context"]
+        if not documents:
+            print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---")
+            return "transform_query"
+        else:
+            print("---DECISION: GENERATE---")
+            return "generate"
     
+    def grade_generation_v_documents_and_question(state: State):
+        print("---CHECK HALLUCINATIONS---")
+        question = state["question"]
+        documents = state["context"] 
+        generation = state.get("answer", "")  
+
+        score = RAGRetrieval().hallucination_grader.invoke({"documents": documents, "generation": generation})
+        grade = score.binary_score
+
+        if grade == "yes":
+            print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---")
+            print("---GRADE GENERATION vs QUESTION---")
+            score = RAGRetrieval().answer_grader.invoke({"question": question, "generation": generation})
+            grade = score.binary_score
+            if grade == "yes":
+                print("---DECISION: GENERATION ADDRESSES QUESTION---")
+                return "useful"
+            else:
+                print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---")
+                return "not useful"
+        else:
+            print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
+            return "not supported"
+
+    def build_rag_graph():
+        workflow = StateGraph(State)  
+
+        workflow.add_node("retrieve", retrieve_node) 
+        workflow.add_node("grade_documents", grade_documents_node)  
+        workflow.add_node("generate", generate_node)  
+        workflow.add_node("transform_query", transform_query_node) 
+
+        workflow.set_entry_point("retrieve")
+        workflow.add_edge("retrieve", "grade_documents")
+
+        workflow.add_conditional_edges(
+            "grade_documents",
+            decide_to_generate, 
+            {
+                "transform_query": "transform_query", 
+                "generate": "generate",  
+            },
+        )
+
+        workflow.add_edge("transform_query", "retrieve")
+
+        workflow.add_conditional_edges(
+            "generate",
+            grade_generation_v_documents_and_question, 
+            {
+                "not supported": "generate",  
+                "useful": END,  
+                "not useful": "transform_query",  
+            },
+        )
+
+        return workflow.compile()
+
+    def run_rag_workflow_streamed(query):
+        print("---STARTING STREAMED GRAPH-BASED RAG WORKFLOW---")
+        app = build_rag_graph()
+
+        inputs = {"question": query, "context": [], "answer": ""}
+
+        final_output = None
+        for output in app.stream(inputs):
+            for key, value in output.items():
+                pprint(f"Node '{key}':")
+
+            pprint("\n---\n")  
+            final_output = value 
+
+        if final_output and "answer" in final_output:
+            return {"answer": final_output["answer"]}
+        else:
+            return {"error": "The workflow could not generate a valid response."}
+        
     def close_db(self):
         self.database.get_db().close_db()
 
