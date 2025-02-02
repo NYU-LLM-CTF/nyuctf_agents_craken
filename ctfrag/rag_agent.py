@@ -4,8 +4,12 @@ from pathlib import Path
 from langchain_openai import ChatOpenAI
 from ctfrag.retrieval import RAGRetrieval
 from ctfrag.rag_config import RAGConfig
+from langchain_core._api.deprecation import LangChainDeprecationWarning
 import warnings
-warnings.simplefilter("ignore", category=DeprecationWarning)
+# os.environ["PYTHONWARNINGS"] = "ignore"
+# warnings.simplefilter("ignore", category=DeprecationWarning)
+# warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
+# warnings.filterwarnings("ignore")
 
 TEST_CONTEXT = """
 It seems we don't have permission to install packages. 
@@ -25,6 +29,10 @@ class RagAgent:
         self.llm = ChatOpenAI(model_name=self.model, temperature=self.config.agent_config.model_temperature)
         self.retrieval_alg = RAGRetrieval(llm=self.llm, config=config)
         self.history = []
+        self.enabled = False
+    
+    def enable_retriever(self):
+        self.enabled = True
 
     def summarize_context(self, info, prompt=None):
         response = self.llm.invoke(prompt if prompt else self.config.retrieval_config.template_q.format(observation=info))
