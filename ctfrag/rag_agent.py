@@ -34,6 +34,9 @@ class RagAgent:
         if mode == "graph":
             results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
             answer = results["answer"]
+        elif mode == "self_rag":
+            results = self.retrieval_alg.self_rag_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
+            answer = results["answer"]
         else:
             answer = self.retrieval_alg.chain_retrieve(query, collection, template if template else self.config.retrieval_config.template_main)
         self.history.append({
@@ -51,7 +54,8 @@ if __name__ == "__main__":
     agent = RagAgent(config=RAGConfig(config_path=args.config))
     response = agent.summarize_context(info=TEST_CONTEXT)
     print(response)
-    answer = agent.rag_generate(response, mode="chain", collection="writeups")
+    #answer = agent.rag_generate(response, mode="chain", collection="writeups")
+    answer = agent.rag_generate(response, mode="self_rag", collection="writeups")
     # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
     # context, answer = agent.rag_generate(response, collection="HFCTF")
     # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
