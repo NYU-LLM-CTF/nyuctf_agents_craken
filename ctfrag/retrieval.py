@@ -19,6 +19,7 @@ class State(TypedDict):
     question: str
     context: List[Document]
     answer: str
+    recursion_depth: int
 
 class RetrieverWrap:
     def __init__(self) -> None:
@@ -321,7 +322,11 @@ class RAGRetrieval:
 
         else:
             final_docs = self._search(state["question"])
-        
+
+        if not final_docs:
+            print("---NO DOCUMENTS FOUND. RETURNING DEFAULT RESPONSE---")
+            final_docs = [Document(page_content="No relevant documents found.")]
+
         if self.config.feature_config.retrieval_grading:
             final_docs = self.grade_retrieval(state["question"], final_docs)
 
@@ -381,12 +386,26 @@ class RAGRetrieval:
         return result
 
     def retrieve_node(self, state: State):
+        
+        if state["recursion_depth"] > self.MAX_RETRIES:
+            print("Maximum recursion depth reached. Terminating workflow.")
+            #return {"context": [], "answer": "Max retries reached. Stopping execution."}  # ✅ Return valid state
+            return END
+        state["recursion_depth"] += 1
+
         print("---RETRIEVE NODE---")
         retrieval_result = self.retrieve(state)
         state["context"] = retrieval_result["context"]
         return state
 
     def generate_node(self, state: State):
+       
+        if state["recursion_depth"] > self.MAX_RETRIES:
+            print("Maximum recursion depth reached. Terminating workflow.")
+            #return {"context": [], "answer": "Max retries reached. Stopping execution."}  # ✅ Return valid state
+            return END
+        state["recursion_depth"] += 1
+
         print("---GENERATE NODE---")
         result = self.generate(state)
         state["answer"] = result["answer"]
@@ -397,31 +416,70 @@ class RAGRetrieval:
         question = state["question"]
         documents = state["context"]
         filtered_docs = self.grade_retrieval(question, documents)
+
+        if not filtered_docs:
+            print("---NO RELEVANT DOCUMENTS FOUND---")
+            state["retry_count"] += 1
+
+            # ✅ If we hit MAX_RETRIES, return a termination response instead of END
+            if state["retry_count"] >= self.MAX_RETRIES:
+                print("---MAX RETRIES REACHED. Stopping workflow.---")
+                return {
+                    "context": [],
+                    "answer": "No relevant documents found after multiple attempts. Stopping execution.",
+                    "status": "stop",  # ✅ This tells the graph to stop cleanly
+                }
+
+            return {"context": [], "retry": True}
+    
         state["context"] = filtered_docs
         return state
 
     def transform_query_node(self, state: State):
+        
+        if state["recursion_depth"] > self.MAX_RETRIES:
+            print("Maximum recursion depth reached. Terminating workflow.")
+            #return {"context": [], "answer": "Max retries reached. Stopping execution."}  # ✅ Return valid state
+            return END
+        state["recursion_depth"] += 1
+
         print("---TRANSFORM QUERY NODE---")
         question = state["question"]
         rewritten_question = self.rewrite_question(question)
         state["question"] = rewritten_question
         return state
 
+    MAX_RETRIES = 3
+
     def decide_to_generate(self, state: State):
         print("---ASSESS GRADED DOCUMENTS---")
         documents = state["context"]
+        if "retry_count" not in state:
+            state["retry_count"] = 0
         if not documents:
             print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---")
-            return "transform_query"
+            state["retry_count"] += 1
+            if state["retry_count"] >= self.MAX_RETRIES:
+                print("---MAX RETRIES REACHED. STOPPING QUERY TRANSFORMATION---")
+                return {
+                "context": [],
+                "answer": "Failed to retrieve relevant documents after MAX_RETRIES. Stopping execution.",
+                "status": "stop",
+            }
+
+            return {"next_step": "transform_query"}
         else:
             print("---DECISION: GENERATE---")
-            return "generate"
+            return {"next_step": "generate"}
     
     def grade_generation_v_documents_and_question(self, state: State):
         print("---CHECK HALLUCINATIONS---")
         question = state["question"]
         documents = state["context"] 
         generation = state.get("answer", "")  
+
+        if "retry_count" not in state:
+            state["retry_count"] = 0
 
         score = self.hallucination_grader.invoke({"documents": documents, "generation": generation})
         grade = score.binary_score
@@ -433,12 +491,28 @@ class RAGRetrieval:
             grade = score.binary_score
             if grade == "yes":
                 print("---DECISION: GENERATION ADDRESSES QUESTION---")
-                return "useful"
+                #return "useful"
+                #return {"answer": generation}
+                return END
             else:
                 print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---")
+                state["retry_count"] += 1
+                if state["retry_count"] >= self.MAX_RETRIES:
+                    print("---MAX RETRIES REACHED. STOPPING RECURSION---")
+                    #return "useful"  # Prevent further recursion
+                    return END
+                    #return {"context": [], "answer": "Answer does not address the question. Stopping execution."}  # ✅ Valid return state
+
                 return "not useful"
         else:
             print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
+            state["retry_count"] += 1
+            if state["retry_count"] >= self.MAX_RETRIES:
+                print("---MAX RETRIES REACHED. STOPPING RECURSION---")
+                #return "useful"  # Prevent further recursion
+                return END
+                #return {"context": [], "answer": "Answer is not grounded in facts. Stopping execution."}  # ✅ Valid return state
+
             return "not supported"
 
     def build_rag_graph(self):
@@ -458,6 +532,7 @@ class RAGRetrieval:
             {
                 "transform_query": "transform_query", 
                 "generate": "generate",  
+                "stop": END,
             },
         )
 
@@ -468,8 +543,10 @@ class RAGRetrieval:
             self.grade_generation_v_documents_and_question, 
             {
                 "not supported": "generate",  
+                #"not supported": END,
                 "useful": END,  
                 "not useful": "transform_query",  
+                "stop": END,
             },
         )
 
@@ -482,9 +559,16 @@ class RAGRetrieval:
     def run_rag_workflow_streamed(self, query):
         print("---STARTING STREAMED GRAPH-BASED RAG WORKFLOW---")
         app = self.build_rag_graph()
-        app.config["recursion_limit"] = 50
+        if app is None:
+            raise RuntimeError("Graph compilation failed. Cannot proceed with RAG workflow.")
 
-        inputs = {"question": query, "context": [], "answer": ""}
+        """ # Ensure `app.config` exists before modifying it
+        if not hasattr(app, "config") or app.config is None:
+            app.config = {}  # Initialize config if it's None
+
+        app.config["recursion_limit"] = 50  # Increase recursion limit """
+
+        inputs = {"question": query, "context": [], "answer": "","recursion_depth": 0}
 
         final_output = None
         for output in app.stream(inputs):

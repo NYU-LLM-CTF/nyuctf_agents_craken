@@ -26,3 +26,5 @@ tiktoken
 langchainhub
 chromadb
 pymupdf
+unstructured
+pdfminer
