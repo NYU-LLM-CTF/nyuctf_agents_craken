@@ -389,7 +389,7 @@ class RAGRetrieval:
         
         if state["recursion_depth"] > self.MAX_RETRIES:
             print("Maximum recursion depth reached. Terminating workflow.")
-            #return {"context": [], "answer": "Max retries reached. Stopping execution."}  # ✅ Return valid state
+            #return {"context": [], "answer": "Max retries reached. Stopping execution."} 
             return END
         state["recursion_depth"] += 1
 
@@ -402,7 +402,7 @@ class RAGRetrieval:
        
         if state["recursion_depth"] > self.MAX_RETRIES:
             print("Maximum recursion depth reached. Terminating workflow.")
-            #return {"context": [], "answer": "Max retries reached. Stopping execution."}  # ✅ Return valid state
+            #return {"context": [], "answer": "Max retries reached. Stopping execution."} 
             return END
         state["recursion_depth"] += 1
 
@@ -419,29 +419,20 @@ class RAGRetrieval:
 
         if not filtered_docs:
             print("---NO RELEVANT DOCUMENTS FOUND---")
-            state["retry_count"] += 1
-
-            # ✅ If we hit MAX_RETRIES, return a termination response instead of END
-            if state["retry_count"] >= self.MAX_RETRIES:
-                print("---MAX RETRIES REACHED. Stopping workflow.---")
-                return {
-                    "context": [],
-                    "answer": "No relevant documents found after multiple attempts. Stopping execution.",
-                    "status": "stop",  # ✅ This tells the graph to stop cleanly
-                }
-
+            if state["recursion_depth"] > self.MAX_RETRIES:
+                print("Maximum recursion depth reached. Terminating workflow.")
+                return END
+            state["recursion_depth"] += 1
             return {"context": [], "retry": True}
     
         state["context"] = filtered_docs
         return state
 
     def transform_query_node(self, state: State):
-        
+        state["recursion_depth"] += 1
         if state["recursion_depth"] > self.MAX_RETRIES:
             print("Maximum recursion depth reached. Terminating workflow.")
-            #return {"context": [], "answer": "Max retries reached. Stopping execution."}  # ✅ Return valid state
             return END
-        state["recursion_depth"] += 1
 
         print("---TRANSFORM QUERY NODE---")
         question = state["question"]
@@ -458,14 +449,10 @@ class RAGRetrieval:
             state["retry_count"] = 0
         if not documents:
             print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---")
-            state["retry_count"] += 1
-            if state["retry_count"] >= self.MAX_RETRIES:
-                print("---MAX RETRIES REACHED. STOPPING QUERY TRANSFORMATION---")
-                return {
-                "context": [],
-                "answer": "Failed to retrieve relevant documents after MAX_RETRIES. Stopping execution.",
-                "status": "stop",
-            }
+            state["recursion_depth"] += 1
+            if state["recursion_depth"] > self.MAX_RETRIES:
+                print("---MAX RECURSION DEPTH REACHED. Stopping workflow.---")
+                return END 
 
             return {"next_step": "transform_query"}
         else:
@@ -501,7 +488,7 @@ class RAGRetrieval:
                     print("---MAX RETRIES REACHED. STOPPING RECURSION---")
                     #return "useful"  # Prevent further recursion
                     return END
-                    #return {"context": [], "answer": "Answer does not address the question. Stopping execution."}  # ✅ Valid return state
+                    #return {"context": [], "answer": "Answer does not address the question. Stopping execution."} 
 
                 return "not useful"
         else:
@@ -511,7 +498,7 @@ class RAGRetrieval:
                 print("---MAX RETRIES REACHED. STOPPING RECURSION---")
                 #return "useful"  # Prevent further recursion
                 return END
-                #return {"context": [], "answer": "Answer is not grounded in facts. Stopping execution."}  # ✅ Valid return state
+                #return {"context": [], "answer": "Answer is not grounded in facts. Stopping execution."}  
 
             return "not supported"
 
