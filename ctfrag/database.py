@@ -13,6 +13,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import json
 import yaml
 from pathlib import Path
+from unstructured.partition.pdf import partition_pdf
 # import pymupdf
 from ctfrag.db_backend.base import BaseVectorDB
 from ctfrag.db_backend.milvus import MilvusDB
@@ -124,7 +125,22 @@ class RAGDatabase:
             path = self._download_data(url=path)
             is_url = True
         if path.endswith(".pdf"):
-            pass
+            print("Processing PDF...")
+            try:
+                elements = partition_pdf(filename=path)
+                text = "\n".join([element.text for element in elements if element.text])
+                if not text.strip():
+                    print("Warning: No extractable text found in PDF.")
+                    return
+
+                document = LangchainDocument(page_content=text, metadata={"source": path})
+                docs = text_splitter.split_documents([document])
+                self.vector_db.insert_document(docs, embeddings, collection)
+            except Exception as e:
+                print(f"Error processing PDF with unstructured: {e}")
+                return
+    
+            #pass
             # doc = pymupdf.open(path)
             # fd, path = tempfile.mkstemp()
             # with os.fdopen(fd, 'wb') as f:
@@ -132,10 +148,11 @@ class RAGDatabase:
             #         text = page.get_text().encode("utf8")
             #         f.write(text)
             #         f.write(bytes((12,)))
-        loader = TextLoader(path)
-        documents = loader.load()
-        docs = text_splitter.split_documents(documents)
-        self.vector_db.insert_document(docs, embeddings, collection)
+        else:
+            loader = TextLoader(path)
+            documents = loader.load()
+            docs = text_splitter.split_documents(documents)
+            self.vector_db.insert_document(docs, embeddings, collection)
         if is_url:
             os.remove(path)
 
