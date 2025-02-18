@@ -46,6 +46,8 @@ dependencies = [
   "llama-parse",
   "PyMuPDF",
   "pydantic",
+  "unstructured",
+  "unstructured[pdf]",
 ]
 
 [tool.hatch.build.targets.wheel]
