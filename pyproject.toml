@@ -44,10 +44,8 @@ dependencies = [
   "pyyaml",
   "llama-index",
   "llama-parse",
-  "PyMuPDF",
   "pydantic",
-  "unstructured",
-  "unstructured[pdf]",
+  "unstructured[all-docs]",
 ]
 
 [tool.hatch.build.targets.wheel]
