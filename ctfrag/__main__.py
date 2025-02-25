@@ -1,10 +1,10 @@
 import argparse
-import logging
+# import logging
 from ctfrag.database import RAGDatabase
 from ctfrag.db_backend.milvus import MilvusDB
 from ctfrag.db_backend.weaviate import WeaviateDB
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser("Import RAG data")
 parser.add_argument("--database", default="milvus", choices=["milvus", "weaviate"], help="Vector database")
