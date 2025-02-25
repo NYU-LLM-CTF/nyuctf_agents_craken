@@ -2,7 +2,8 @@ import os
 import argparse
 from pathlib import Path
 from langchain_openai import ChatOpenAI
-from llm_ctf_automation.ctfrag.ctfrag.retrieval_old import RAGRetrieval
+#from llm_ctf_automation.ctfrag.ctfrag.retrieval import RAGRetrieval
+from ctfrag.retrieval import RAGRetrieval
 from ctfrag.rag_config import RAGConfig
 from langchain_core._api.deprecation import LangChainDeprecationWarning
 import warnings
