@@ -3,6 +3,7 @@ import tempfile
 import requests
 import datasets
 import pandas as pd
+from tqdm import tqdm
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -104,7 +105,7 @@ class RAGDatabase:
         else:
             print("Directory detected, loading in batch...")
             files = self._walk_dir(path)
-            for file in files:
+            for file in tqdm(files):
                 self._parse_file(file, collection, embeddings, text_splitter, args)
 
     def _walk_dir(self, dir):
