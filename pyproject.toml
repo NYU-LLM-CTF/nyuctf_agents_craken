@@ -47,6 +47,7 @@ dependencies = [
   "llama-parse",
   "pydantic",
   "unstructured[all-docs]",
+  "langchain-google-community",
 ]
 
 [tool.hatch.build.targets.wheel]
