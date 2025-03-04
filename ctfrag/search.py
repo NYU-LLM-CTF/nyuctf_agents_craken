@@ -76,7 +76,7 @@ class WebSearch:
         # Configuration parameters
         self.is_parser_detail: bool = True
         self.child_link_count: int = 30
-        self.max_search_results: int = 2
+        self.max_search_results: int = 10
         
         # Request headers
         self.headers = {
@@ -310,8 +310,8 @@ class WebSearch:
                 
             response = requests.get(url=url, headers=self.headers, timeout=10)
             if response.status_code != 200:
-                print(f"Failed to fetch URL: {url}, status code: {response.status_code}")
-                return content
+                # print(f"Website: {url} cannot be accessed, Status code: {response.status_code}, Ignore")
+                return f"Website: {url} cannot be accessed, Ignore"
                 
             html_text = response.text
             
@@ -329,6 +329,9 @@ class WebSearch:
                 # Extract internal links
                 link_list = self._extract_links(html_text, display_link, query)
                 
+                # Track unsuccessful sublinks
+                unsuccessful_sublinks = []
+                
                 # Try each link until finding usable content
                 for i, item_url in enumerate(link_list[:self.child_link_count]):
                     try:
@@ -345,13 +348,27 @@ class WebSearch:
                                     print(f"Found usable content in sublink: {item_url}")
                                 content = sub_content
                                 break
+                        else:
+                            error_msg = f"Website: {item_url} cannot be accessed, Status code: {sub_response.status_code}, Ignore"
+                            unsuccessful_sublinks.append(error_msg)
+                            if self.verbose:
+                                print(error_msg)
                     except Exception as sub_e:
-                        print(f"Error fetching sublink {item_url}: {sub_e}")
+                        error_msg = f"Website: {item_url} cannot be accessed, Error: {str(sub_e)}, Ignore"
+                        unsuccessful_sublinks.append(error_msg)
+                        if self.verbose:
+                            print(error_msg)
                         continue
-                        
+                
+                # If we didn't find usable content and there were unsuccessful sublinks,
+                # include them in the content
+                if not content and unsuccessful_sublinks:
+                    content = "\n".join(unsuccessful_sublinks)
+                    
         except Exception as e:
-            print(f"Error loading HTML content from {url}: {e}")
-            print(f"Traceback: {traceback.format_exc()}")
+            error_msg = f"Website: {url} cannot be accessed, Error: {str(e)}, Ignore"
+            print(error_msg)
+            content = error_msg
             
         return content
 
@@ -405,6 +422,7 @@ class WebSearch:
             # Process search results
             content_items = []
             final_content = ""
+            inaccessible_websites = []
             
             if search_result and "items" in search_result:
                 if self.verbose:
@@ -439,6 +457,13 @@ class WebSearch:
                             display_link=item.get("displayLink", "")
                         )
                         
+                        # Check if the response indicates a failed website
+                        if detail and detail.startswith("Website:") and "cannot be accessed" in detail:
+                            inaccessible_websites.append(detail)
+                            if self.verbose:
+                                print(f"Skipping inaccessible website: {url}")
+                            continue
+                        
                         if not detail:
                             if self.verbose:
                                 print(f"No usable content found for {url}")
@@ -467,6 +492,11 @@ class WebSearch:
                         if self.verbose:
                             print("Summary generation complete")
                             print("=" * 40)
+                    
+                    # Add information about inaccessible websites to the final content
+                    if inaccessible_websites:
+                        inaccessible_info = "\n\n" + "\n".join(inaccessible_websites)
+                        final_content = final_content + inaccessible_info if final_content else inaccessible_info
             else:
                 if self.verbose:
                     print("No search results found")
@@ -480,7 +510,7 @@ class WebSearch:
 
 
 if __name__ == "__main__":
-    engine = WebSearch(verbose=False)
+    engine = WebSearch(verbose=True)
     result = engine.search_web(r"Find the CTF writeups for CSAW Challenge Baby's First?")
     print(result.content)
     # print(result.websites)
