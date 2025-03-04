@@ -17,12 +17,12 @@ Let's try using Python to interpret the Brainfuck code. I'll create a simple Pyt
 """
 
 with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
-    OPENAI_API_KEY = f.read().strip()
-    os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-
+    for line in f:
+        key, value = line.strip().split("=")
+        os.environ[key] = value
 
 class RagAgent:
-    def __init__(self, api_key=OPENAI_API_KEY, config: RAGConfig={}) -> None:
+    def __init__(self, api_key=None, config: RAGConfig={}) -> None:
         self.config = config
         self.api_key = api_key
         self.model = self.config.agent_config.model_name
