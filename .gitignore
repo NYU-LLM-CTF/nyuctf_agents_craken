@@ -2,3 +2,5 @@ api_keys
 __pycache__/
 docker/milvus/volumes
 db/
+old_code/
+*.pyc
