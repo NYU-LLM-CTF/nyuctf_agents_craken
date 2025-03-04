@@ -53,13 +53,10 @@ class WebSearch:
     """Improved web search implementation using LangChain"""
     
     def __init__(self, verbose: bool = False):
-        # 添加verbose参数，控制是否显示推理过程
         self.verbose = verbose
         
-        # 如果verbose为True，则使用StdOutCallbackHandler
         self.callbacks = [StdOutCallbackHandler()] if verbose else None
         
-        # 在创建llm实例时添加callbacks参数
         self.llm = ChatOpenAI(
             model_name="gpt-4o-2024-11-20", 
             temperature=0.7,
@@ -483,7 +480,7 @@ class WebSearch:
 
 
 if __name__ == "__main__":
-    engine = WebSearch(verbose=True)
-    result = engine.search_web(r"Find the CTF writeups for CSAW'23 Baby's First")
+    engine = WebSearch(verbose=False)
+    result = engine.search_web(r"Find the CTF writeups for CSAW Challenge Baby's First?")
     print(result.content)
     # print(result.websites)
