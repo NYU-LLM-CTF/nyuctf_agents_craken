@@ -48,6 +48,10 @@ dependencies = [
   "pydantic",
   "unstructured[all-docs]",
   "langchain-google-community",
+  "readability-lxml",
+  "duckduckgo-search",
+  "newspaper3k",
+  "lxml-html-clean",
 ]
 
 [tool.hatch.build.targets.wheel]
