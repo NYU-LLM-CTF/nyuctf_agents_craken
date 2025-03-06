@@ -42,7 +42,6 @@ class GradeAnswer(BaseModel):
     """Binary score to assess whether the answer addresses the question."""
     binary_score: str = Field(description="Answer addresses the question, 'yes' or 'no'")
 
-
 class RAGRetrieval:
     def __init__(self, llm=None, config={}) -> None:
         self.llm = llm
@@ -52,6 +51,7 @@ class RAGRetrieval:
         self.graph_builder.add_edge(START, "retrieve")
         self.graph = self.graph_builder.compile()
         self.wrap = RetrieverWrap()
+        self.MAX_RETRIES = 3
         self._init_retrieval_grader()
         self._init_hallucination_grader()
         self._init_answer_grader()
@@ -275,6 +275,7 @@ class RAGRetrieval:
         return result
 
     def _search(self, question):
+        import pdb; pdb.set_trace()
         if self.config.feature_config.rerank:
             self._create_retriever()
             self._create_compressor(self.config.retrieval_config.reranker_type)
@@ -439,8 +440,6 @@ class RAGRetrieval:
         rewritten_question = self.rewrite_question(question)
         state["question"] = rewritten_question
         return state
-
-    MAX_RETRIES = 3
 
     def decide_to_generate(self, state: State):
         print("---ASSESS GRADED DOCUMENTS---")
