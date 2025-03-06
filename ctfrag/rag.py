@@ -42,7 +42,7 @@ class GradeAnswer(BaseModel):
     """Binary score to assess whether the answer addresses the question."""
     binary_score: str = Field(description="Answer addresses the question, 'yes' or 'no'")
 
-class RAGRetrieval:
+class RAGAgent:
     def __init__(self, llm=None, config={}) -> None:
         self.llm = llm
         self.config = config
@@ -67,12 +67,12 @@ class RAGRetrieval:
 
     def _create_compressor(self, compressor: str):
         if compressor == "RankLLMRerank":
-            if self.config.retrieval_config.reranker_model.startswith("gpt"):
-                self.wrap.compressor = RankLLMRerank(top_n=self.config.retrieval_config.reranker_top_n, 
-                                                     model="gpt", gpt_model=self.config.retrieval_config.reranker_model)
+            if self.config.rag_config.reranker_model.startswith("gpt"):
+                self.wrap.compressor = RankLLMRerank(top_n=self.config.rag_config.reranker_top_n, 
+                                                     model="gpt", gpt_model=self.config.rag_config.reranker_model)
             else:
-                self.wrap.compressor = RankLLMRerank(top_n=self.config.retrieval_config.reranker_top_n, 
-                                                     model=self.config.retrieval_config.reranker_model)
+                self.wrap.compressor = RankLLMRerank(top_n=self.config.rag_config.reranker_top_n, 
+                                                     model=self.config.rag_config.reranker_model)
             return
         if compressor == "LLMChainExtractor":
             self.wrap.compressor = LLMChainExtractor.from_llm(self.llm)
@@ -92,10 +92,10 @@ class RAGRetrieval:
 
     def _create_retriever(self):
         if self.config.feature_config.search_params:
-            self.wrap.retriever = self.wrap.vector_store.as_retriever(search_type=self.config.retrieval_config.retriever_search, 
-                                                           search_kwargs=self.config.retrieval_config.retriever_params)
+            self.wrap.retriever = self.wrap.vector_store.as_retriever(search_type=self.config.rag_config.retriever_search, 
+                                                           search_kwargs=self.config.rag_config.retriever_params)
         else:
-            self.wrap.retriever = self.wrap.vector_store.as_retriever(search_type=self.config.retrieval_config.retriever_search) 
+            self.wrap.retriever = self.wrap.vector_store.as_retriever(search_type=self.config.rag_config.retriever_search) 
 
     def _create_template(self, template_str: str=None):
         if not template_str:
@@ -106,7 +106,7 @@ class RAGRetrieval:
     def _init_retrieval_grader(self):
         grade_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.retrieval_config.template_retrieval_grading),
+                ("system", self.config.rag_config.template_retrieval_grading),
                 ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
             ]
         )
@@ -125,7 +125,7 @@ class RAGRetrieval:
     def _init_hallucination_grader(self):
         hallucination_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.retrieval_config.template_hallucination_grading),
+                ("system", self.config.rag_config.template_hallucination_grading),
                 ("human", "Set of facts: \n\n {documents} \n\n LLM generation: {generation}"),
             ]
         )
@@ -139,7 +139,7 @@ class RAGRetrieval:
     def _init_answer_grader(self):
         answer_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.retrieval_config.template_answer_grading),
+                ("system", self.config.rag_config.template_answer_grading),
                 ("human", "User question: \n\n {question} \n\n LLM generation: {generation}"),
             ]
         )
@@ -152,7 +152,7 @@ class RAGRetrieval:
     def _init_question_rewriter(self):
         re_write_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.retrieval_config.template_question_rewriting),
+                ("system", self.config.rag_config.template_question_rewriting),
                 ("human", "Here is the initial question: \n\n {question} \n Formulate an improved question."),
             ]
         )
@@ -163,7 +163,7 @@ class RAGRetrieval:
         return rewritten_question
     
     def _multi_query(self):
-        prompt_perspectives = ChatPromptTemplate.from_template(input_variables=["question"], template=self.config.retrieval_config.template_multi)
+        prompt_perspectives = ChatPromptTemplate.from_template(input_variables=["question"], template=self.config.rag_config.template_multi)
         
         generate_queries = (
             prompt_perspectives 
@@ -187,7 +187,7 @@ class RAGRetrieval:
         return [doc for doc, _ in reranked_results]  
 
     def _decompose_question(self, question: str):
-        prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.retrieval_config.template_decompose)
+        prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.rag_config.template_decompose)
         generate_queries_decomposition = (
             prompt_decomposition
             | self.llm
@@ -203,7 +203,7 @@ class RAGRetrieval:
         return formatted_string.strip()
     
     def _answer_sub_questions(self, sub_questions: list[str]):
-        decomposition_prompt = ChatPromptTemplate.from_template(template=self.config.retrieval_config.template_answer_decompose)
+        decomposition_prompt = ChatPromptTemplate.from_template(template=self.config.rag_config.template_answer_decompose)
         
         q_a_pairs = ""
         for q in sub_questions:
@@ -259,7 +259,7 @@ class RAGRetrieval:
         return step_back_query
 
     def _retrieve_step_back_context(self, question: str, step_back_query: str):
-        response_prompt = ChatPromptTemplate.from_template(response_prompt_template=self.config.retrieval_config.template_step_back)
+        response_prompt = ChatPromptTemplate.from_template(response_prompt_template=self.config.rag_config.template_step_back)
         chain = (
             {
                 "normal_context": RunnableLambda(lambda x: x["question"]) | self.wrap.retriever,
@@ -278,15 +278,15 @@ class RAGRetrieval:
         import pdb; pdb.set_trace()
         if self.config.feature_config.rerank:
             self._create_retriever()
-            self._create_compressor(self.config.retrieval_config.reranker_type)
-            self._create_cretriever(self.config.retrieval_config.compressor_retriever)
+            self._create_compressor(self.config.rag_config.reranker_type)
+            self._create_cretriever(self.config.rag_config.compressor_retriever)
             return self.wrap.cretriever.invoke(question)
         if self.config.feature_config.compressor:
             self._create_retriever()
-            self._create_compressor(self.config.retrieval_config.compressor_type)
-            self._create_cretriever(self.config.retrieval_config.compressor_retriever)
+            self._create_compressor(self.config.rag_config.compressor_type)
+            self._create_cretriever(self.config.rag_config.compressor_retriever)
             return self.wrap.cretriever.invoke(question)
-        if self.config.retrieval_config.retriever_type == "similarity_search":
+        if self.config.rag_config.retriever_type == "similarity_search":
             return self.wrap.vector_store.similarity_search(question)
         
     def retrieve(self, state: State):
