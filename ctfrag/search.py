@@ -24,8 +24,8 @@ SEARCH_TEMPLATE: str = """
     Key information: The key information you extracted from the user's input for search engine searches
     Output in this format. Do not add any additional content, you must strictly follow the standard format
     For example:
-    User input: What news is there in Chengdu these days?
-    Key information: Chengdu, news
+    User input: How to solve a reverse CTF Challenge?
+    Key information: CTF, reverse
     
     User input: {query}
     """
