@@ -1,6 +1,7 @@
 # Knowledge-based CTF
 ## Database Import
 To import the database you need to follow below steps:
+- **Config Keys:** This module supports independent API Keys setup, path a api key file named after "api_keys" under the ctfrag root folder.
 - **Run the database:** Use `milvus` docker file placed in the respective folder to run the database instance loaclly using `bash setup.sh` command.
 - **Install ctfrag package using
 ```console
