@@ -14,7 +14,7 @@ class AgentConfig:
     model_temperature: str
 
 @dataclass
-class RetrievalConfig:
+class RAGConfig:
     reranker_type: str
     reranker_model: str
     reranker_top_n: int
@@ -70,7 +70,7 @@ Observation: {observation}
 Give your suggested query to the database.
 """
 
-class RAGConfig:
+class RetrieverConfig:
     def __init__(self, config_path):
         self.config_yaml = self._load_config(config_path)
         self.db_config = DatabaseConfig(
@@ -85,7 +85,7 @@ class RAGConfig:
             model_name=self.config_yaml.get("agent", {}).get("model", {}).get("name", "gpt-4o-mini-2024-07-18"),   
             model_temperature=self.config_yaml.get("agent", {}).get("model", {}).get("temperature", 0)
         )
-        self.retrieval_config = RetrievalConfig(
+        self.rag_config = RAGConfig(
             reranker_type=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("type", "RankLLMRerank"),
             reranker_model=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("model", "gpt-4o-mini-2024-07-18"),
             reranker_top_n=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("top_n", 3),
