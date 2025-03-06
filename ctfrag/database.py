@@ -23,9 +23,14 @@ from ctfrag.db_backend.milvus import MilvusDB
 # from langchain.schema.runnable import RunnablePassthrough
 # from langchain.schema.output_parser import StrOutputParser
 
+# with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
+#     OPENAI_API_KEY = f.read().strip()
+#     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+
 with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
-    OPENAI_API_KEY = f.read().strip()
-    os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+    for line in f:
+        key, value = line.strip().split("=")
+        os.environ[key] = value
 
 # TEST_TEMPLATE = """You are an assistant for question-answering tasks.
 # Use the following pieces of retrieved context to answer the question.
