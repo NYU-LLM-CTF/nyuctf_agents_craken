@@ -4,6 +4,7 @@ from pathlib import Path
 from langchain_openai import ChatOpenAI
 from ctfrag.rag import RAGAgent
 from ctfrag.config import RetrieverConfig
+from ctfrag.qformatter import QuestionExtractor
 from langchain_core._api.deprecation import LangChainDeprecationWarning
 import warnings
 # os.environ["PYTHONWARNINGS"] = "ignore"
@@ -28,15 +29,16 @@ class RetrieverManager:
         self.model = self.config.agent_config.model_name
         self.llm = ChatOpenAI(model_name=self.model, temperature=self.config.agent_config.model_temperature)
         self.retrieval_alg = RAGAgent(llm=self.llm, config=config)
+        self.extractor = QuestionExtractor(self.llm)
         self.history = []
         self.enabled = False
     
     def enable_retriever(self):
         self.enabled = True
 
-    def summarize_context(self, info, prompt=None):
-        response = self.llm.invoke(prompt if prompt else self.config.rag_config.template_q.format(observation=info))
-        return response.content
+    def summarize_context(self, context):
+        processed_text = self.extractor.process_text(context)
+        return processed_text
 
     def rag_generate(self, query, collection, mode="graph", template=None):
         if mode == "graph":
@@ -60,11 +62,16 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", default=Path(__file__).resolve().parent.parent / "config/rag_config.yaml", type=str, help="config path")
     args = parser.parse_args()
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
-    response = agent.summarize_context(info=TEST_CONTEXT)
-    print(response)
-    #answer = agent.rag_generate(response, mode="chain", collection="writeups")
-    answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
-    # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
-    # context, answer = agent.rag_generate(response, collection="HFCTF")
-    # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
-    print(answer)
+    # response = agent.summarize_context(info=TEST_CONTEXT)
+    # print(response)
+    # #answer = agent.rag_generate(response, mode="chain", collection="writeups")
+    # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
+    # # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
+    # # context, answer = agent.rag_generate(response, collection="HFCTF")
+    # # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
+    # print(answer)
+    task_example = "Analyze Tesla's 2022 financial statements, extract key financial metrics, and compare them with industry standards"
+    task_result = agent.summarize_context(TEST_CONTEXT)
+    for i, q in enumerate(task_result['questions'], 1):
+        answer = agent.rag_generate(q, mode="chain", collection="writeups")
+        print(q + "\n" + answer + "\n\n")
