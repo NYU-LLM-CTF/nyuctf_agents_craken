@@ -35,8 +35,8 @@ retrieval:
     rag_main: |
       You are an assistant for question-answering tasks.
       Use the following pieces of retrieved context to answer the question.
-      If you don't know the answer, just say that you don't know.
-      Try to answer it based on the knowledge database you have step by step.
+      You should rely on the knowledge database.
+      Try to answer it step by step.
       Question: {question}
       Context: {context}
       Answer:

@@ -51,11 +51,10 @@ class QuestionExtractor:
         self.context_to_tasks_prompt = ChatPromptTemplate.from_template("""
             You are an expert at analyzing CTF (Capture The Flag) challenge solving contexts.
             Given the following conversation context (including thoughts and action outputs),
-            determine if this context needs to be broken down into subtasks.
+            determine if this context needs to be broken down into 1-3 subtasks.
             
-            If the context is focused on a single clear task, you can skip decomposition.
-            If the context covers multiple aspects or techniques, break it down into 1-3 subtasks. 
-            If you thought question is not related, you can generate fewer, you do not need to generate excatly 3 subtasks.
+            If the context can only be decomposed into single or fewer tasks, don't provide unncessary tasks.
+            Your decompositon should be concise, you should focus only on helping another agent solve CTF Challenges.                                                                 
             
             Conversation Context:
             ```
