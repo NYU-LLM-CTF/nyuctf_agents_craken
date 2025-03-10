@@ -6,6 +6,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains.summarize import load_summarize_chain
 from langchain.callbacks import StdOutCallbackHandler
 from langchain_community.tools import DuckDuckGoSearchResults
+from langchain_community.callbacks import get_openai_callback
 from readability import Document
 import urllib.parse
 import re
@@ -17,6 +18,35 @@ import os
 from pathlib import Path
 from typing import List, Tuple
 from newspaper import Article
+
+class SearchCostTracker:
+    """Track costs for API usage"""
+    def __init__(self):
+        # Default pricing (can be updated with actual rates)
+        self.google_search_price = 0.005  # $0.005 per search query
+        self.reset()
+    
+    def reset(self):
+        """Reset all cost counters"""
+        self.google_search_cost = 0
+        self.duckduckgo_search_cost = 0
+        self.llm_model = ""
+        self.llm_cost = 0.0
+
+    def add_search_cost(self):
+        self.google_search_cost += self.google_search_price
+
+    def add_cost(self, llm_cost):
+        self.llm_cost += llm_cost
+    
+    def get_cost_summary(self):
+        return {
+            "google_search_cost": round(self.google_search_cost, 4),
+            "duckduckgo_search_cost": 0,  # Free service
+            "llm_model": self.llm_model,
+            "llm_cost": round(self.llm_cost, 4),
+            "total_cost": round(self.google_search_cost + self.llm_cost, 4)
+        }
 
 SEARCH_TEMPLATE: str = """
     Your task is to extract key information from the user's input.
@@ -55,7 +85,7 @@ class WebSearch:
     
     def __init__(self, verbose: bool = False, search_engine: str = "hybrid"):
         self.verbose = verbose
-        
+        self.cost_tracker = SearchCostTracker()
         # Set the search engine option (google, duckduckgo, or hybrid)
         self.search_engine = search_engine.lower()
         if self.search_engine not in ["google", "duckduckgo", "hybrid"]:
@@ -109,7 +139,8 @@ class WebSearch:
             
         try:
             # Use LangChain's DuckDuckGo search tool
-            results = self.duckduckgo_search.invoke(keywords)
+            with get_openai_callback() as cb:
+                results = self.duckduckgo_search.invoke(keywords)
             
             # DuckDuckGo returns a list of dictionaries with title, link, and snippet
             if isinstance(results, list) and results and isinstance(results[0], dict):
@@ -173,7 +204,7 @@ class WebSearch:
             # Perform search
             search_response = requests.get(url=f"{self.base_url}?{search_params}")
             search_result = json.loads(search_response.text)
-            
+            self.cost_tracker.add_search_cost()
             if search_result and "items" in search_result:
                 return search_result["items"][:self.max_search_results]
             else:
@@ -271,7 +302,8 @@ class WebSearch:
         
         # Create and invoke chain to filter links with callback if verbose
         filter_chain = filter_prompt | self.llm.bind(temperature=0.95, top_p=0.7)
-        result = filter_chain.invoke({"context": context, "query": query})
+        with get_openai_callback() as cb:
+            result = filter_chain.invoke({"context": context, "query": query})
         # Convert message object to string if needed
         if hasattr(result, 'content'):
             result = result.content
@@ -318,7 +350,9 @@ class WebSearch:
         
         # Create and invoke summary chain with callback if verbose
         summary_chain = summary_prompt | self.llm.bind(temperature=0.95, top_p=0.7)
-        result = summary_chain.invoke({"content": base_content_info, "query": query})
+        with get_openai_callback() as cb:
+            result = summary_chain.invoke({"content": base_content_info, "query": query})
+            self.cost_tracker.add_cost(cb.total_cost)
         # Convert message object to string if needed
         if hasattr(result, 'content'):
             content = result.content
@@ -349,7 +383,9 @@ class WebSearch:
         
         # Create and invoke evaluation chain with callback if verbose
         evaluation_chain = evaluation_prompt | self.llm.bind(temperature=0.95, top_p=0.7)
-        result = evaluation_chain.invoke({"content": summary, "query": query})
+        with get_openai_callback() as cb:
+            result = evaluation_chain.invoke({"content": summary, "query": query})
+            self.cost_tracker.add_cost(cb.total_cost)
         # Convert message object to string if needed
         if hasattr(result, 'content'):
             result = result.content
@@ -384,7 +420,9 @@ class WebSearch:
             )
             
             # Invoke the chain
-            result = chain.invoke({"input_documents": docs})
+            with get_openai_callback() as cb:
+                result = chain.invoke({"input_documents": docs})
+                self.cost_tracker.add_cost(cb.total_cost)
             
             # Handle different response formats
             if isinstance(result, dict) and "output_text" in result:
@@ -558,7 +596,9 @@ class WebSearch:
                 print("STEP 1: Extracting keywords from query")
                 
             # Extract keywords from query
-            result = self.keyword_chain.invoke({"query": query})
+            with get_openai_callback() as cb:
+                result = self.keyword_chain.invoke({"query": query})
+                self.cost_tracker.add_cost(cb.total_cost)
             keywords = self.parser_output(result)
             
             if self.verbose:
@@ -671,4 +711,5 @@ if __name__ == "__main__":
     engine = WebSearch(verbose=True, search_engine="hybrid")
     result = engine.search_web(r"How to write a good scientific paper?")
     print(result.content)
+    print(engine.cost_tracker.get_cost_summary())
     # print(result.websites)
