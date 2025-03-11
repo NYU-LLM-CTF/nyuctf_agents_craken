@@ -36,6 +36,7 @@ dependencies = [
   "ragatouille",
   "rank-llm",
   "weaviate-client",
+  "pymilvus",
   "langgraph",
   "langchain_milvus",
   "rank_llm",

@@ -125,7 +125,10 @@ class RAGDatabase:
 
                 document = LangchainDocument(page_content=text, metadata={"source": path})
                 docs = text_splitter.split_documents([document])
-                self.vector_db.insert_document(docs, collection)
+                try:
+                    self.vector_db.insert_document(docs, collection)
+                except Exception as e:
+                    print(f"Error processing file: {path}\nError message: {e}")
             except Exception as e:
                 print(f"Error processing PDF with unstructured: {e}")
                 return
@@ -142,7 +145,10 @@ class RAGDatabase:
             loader = TextLoader(path)
             documents = loader.load()
             docs = text_splitter.split_documents(documents)
-            self.vector_db.insert_document(docs, collection)
+            try:
+                self.vector_db.insert_document(docs, collection)
+            except Exception as e:
+                print(f"Error processing file: {path}\nError message: {e}")
         if is_url:
             os.remove(path)
 
@@ -185,7 +191,10 @@ class RAGDatabase:
         for key, value in data.items():
             document = {"page_content": value, "metadata": {"name": key}}
             docs = text_splitter.split_documents([document])
-            self.vector_db.insert_document(docs, collection)
+            try:
+                self.vector_db.insert_document(docs, collection)
+            except Exception as e:
+                print(f"Error processing file: {path}\nError message: {e}")
         if is_url:
             import os
             os.remove(path)
@@ -217,7 +226,10 @@ class RAGDatabase:
                 if doc.page_content not in unique_texts:
                     unique_texts[doc.page_content] = True
                     docs_processed_unique.append(doc)
-        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, collection)
+        try:
+            self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, collection)
+        except Exception as e:
+            print(f"Error processing document: {e}")
     
     def get_db(self):
         return self.vector_db
