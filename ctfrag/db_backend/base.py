@@ -6,12 +6,13 @@ class BaseVectorDB(ABC):
     def __init_subclass__(cls):
         super().__init_subclass__()
     
-    def __init__(self) -> None:
+    def __init__(self, embeddings) -> None:
         super().__init__()
         self.client = None
+        self.embeddings = embeddings
 
     @abstractmethod
-    def insert_document(self, documents: List[Document], embeddings, collection: str):
+    def insert_document(self, documents: List[Document], collection: str):
         pass
 
     @abstractmethod

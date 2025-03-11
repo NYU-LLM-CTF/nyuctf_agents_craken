@@ -15,31 +15,12 @@ import json
 import yaml
 from pathlib import Path
 from unstructured.partition.pdf import partition_pdf
-# import pymupdf
 from ctfrag.db_backend.base import BaseVectorDB
-from ctfrag.db_backend.milvus import MilvusDB
-# from langchain.prompts import ChatPromptTemplate
-# from langchain_openai import ChatOpenAI
-# from langchain.schema.runnable import RunnablePassthrough
-# from langchain.schema.output_parser import StrOutputParser
-
-# with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
-#     OPENAI_API_KEY = f.read().strip()
-#     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
     for line in f:
         key, value = line.strip().split("=")
         os.environ[key] = value
-
-# TEST_TEMPLATE = """You are an assistant for question-answering tasks.
-# Use the following pieces of retrieved context to answer the question.
-# If you don't know the answer, just say that you don't know.
-# Use three sentences maximum and keep the answer concise.
-# Question: {question}
-# Context: {context}
-# Answer:
-# """
 
 def find_by_name(name, items):
     for item in items:
@@ -141,7 +122,7 @@ class RAGDatabase:
 
                 document = LangchainDocument(page_content=text, metadata={"source": path})
                 docs = text_splitter.split_documents([document])
-                self.vector_db.insert_document(docs, embeddings, collection)
+                self.vector_db.insert_document(docs, collection)
             except Exception as e:
                 print(f"Error processing PDF with unstructured: {e}")
                 return
@@ -158,7 +139,7 @@ class RAGDatabase:
             loader = TextLoader(path)
             documents = loader.load()
             docs = text_splitter.split_documents(documents)
-            self.vector_db.insert_document(docs, embeddings, collection)
+            self.vector_db.insert_document(docs, collection)
         if is_url:
             os.remove(path)
 
@@ -201,7 +182,7 @@ class RAGDatabase:
         for key, value in data.items():
             document = {"page_content": value, "metadata": {"name": key}}
             docs = text_splitter.split_documents([document])
-            self.vector_db.insert_document(docs, embeddings, collection)
+            self.vector_db.insert_document(docs, collection)
         if is_url:
             import os
             os.remove(path)
@@ -233,128 +214,7 @@ class RAGDatabase:
                 if doc.page_content not in unique_texts:
                     unique_texts[doc.page_content] = True
                     docs_processed_unique.append(doc)
-        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
-
-    # def load_hf_csv(self, dataset=None, collection=None,
-    #                 chunk_size=512, overlap=50, unique=True,
-    #                 text_col="text", name_col="source") -> None:
-    #     embeddings = OpenAIEmbeddings()
-    #     ds = datasets.load_dataset("csv", data_files=dataset)
-    #     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-    #     print(list(ds.keys())[0])
-    #     ds = ds[list(ds.keys())[0]]
-    #     docs_processed = []
-    #     RAW_KNOWLEDGE_BASE = [
-    #         LangchainDocument(page_content=doc[text_col], metadata={"source": doc[name_col]})
-    #         for doc in tqdm(ds)
-    #     ]
-    #     for doc in RAW_KNOWLEDGE_BASE:
-    #         docs_processed += text_splitter.split_documents([doc])
-    #     if unique:
-    #         unique_texts = {}
-    #         docs_processed_unique = []
-    #         for doc in docs_processed:
-    #             if doc.page_content not in unique_texts:
-    #                 unique_texts[doc.page_content] = True
-    #                 docs_processed_unique.append(doc)
-    #     self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
-
-    # def load_hf(self, dataset=None, collection=None, 
-    #             chunk_size=512, overlap=50, unique=True, 
-    #             text_col="text", name_col="source") -> None:
-    #     embeddings = OpenAIEmbeddings()
-    #     ds = datasets.load_dataset(dataset, split="train")
-    #     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-    #     docs_processed = []
-    #     RAW_KNOWLEDGE_BASE = [
-    #         LangchainDocument(page_content=doc[text_col], metadata={"source": doc[name_col]})
-    #         for doc in tqdm(ds)
-    #     ]
-    #     for doc in RAW_KNOWLEDGE_BASE:
-    #         docs_processed += text_splitter.split_documents([doc])
-    #     if unique:
-    #         unique_texts = {}
-    #         docs_processed_unique = []
-    #         for doc in docs_processed:
-    #             if doc.page_content not in unique_texts:
-    #                 unique_texts[doc.page_content] = True
-    #                 docs_processed_unique.append(doc)
-    #     self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
-    
-    # def _readdoc(self, path):
-    #     with open(path, "r") as f:
-    #         text = f.read()
-    #     return text
-
-    # def load_dir(self, dir=None, collection=None, 
-    #              chunk_size=512, overlap=50, unique=True, 
-    #              recursive=True) -> None:
-    #     if not os.path.isdir(dir):
-    #         print("Please provide a valid directory")
-    #         return
-    #     paths = []
-    #     docs_processed = []
-    #     embeddings = OpenAIEmbeddings()
-    #     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
-    #     if recursive:
-    #         for root, dirs, files in os.walk(dir):
-    #             for filename in files:
-    #                 paths.append(os.path.join(root, filename))
-    #     else:
-    #         for filename in os.listdir(dir):
-    #             paths.append(os.path.join(dir, filename))
-        
-    #     RAW_KNOWLEDGE_BASE = [
-    #         LangchainDocument(page_content=self._readdoc(path), metadata={"source": path})
-    #         for path in tqdm(paths)
-    #     ]
-
-    #     for doc in RAW_KNOWLEDGE_BASE:
-    #         docs_processed += text_splitter.split_documents([doc])
-    #     if unique:
-    #         unique_texts = {}
-    #         docs_processed_unique = []
-    #         for doc in docs_processed:
-    #             if doc.page_content not in unique_texts:
-    #                 unique_texts[doc.page_content] = True
-    #                 docs_processed_unique.append(doc)
-    #     self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, embeddings, collection)
+        self.vector_db.insert_document(docs_processed_unique if unique else docs_processed, collection)
     
     def get_db(self):
         return self.vector_db
-
-    # def test_query(self, collection=None, query=None):
-    #     data = WeaviateVectorStore.from_documents([], OpenAIEmbeddings(), client=self.weaviate_cli, index_name=collection)
-    #     retriever = data.as_retriever()
-    #     prompt = ChatPromptTemplate.from_template(TEST_TEMPLATE)
-    #     llm = ChatOpenAI(model_name="gpt-4o-mini-2024-07-18", temperature=0)
-    #     rag_chain = (
-    #         {"context": retriever,  "question": RunnablePassthrough()}
-    #         | prompt
-    #         | llm
-    #         | StrOutputParser()
-    #     )
-    #     response = rag_chain.invoke(query)
-    #     return response
-        # docs = data.similarity_search(query)
-        # for i, doc in enumerate(docs):
-        #     print(f"\nDocument {i+1}:")
-        #     print(doc.page_content)
-
-if __name__ == "__main__":
-    # db = RAGDatabase(MilvusDB())
-    pass
-    # print(Path(__file__).resolve().parent)
-    # db.load_hf(dataset="m-ric/huggingface_doc", collection="HFCTF")
-    # db.get_dbwarp().delete_collection('collection_1')
-    # db.load_file(path="https://raw.githubusercontent.com/hwchase17/chat-your-data/refs/heads/master/state_of_the_union.txt", collection="TESTFILE")
-    # res = db.test_query("HFCTF", "How to create an endpoint?")
-    # print(res)
-    # db.close()
-
-    ########## Load from directory ################
-    # path = "./dataset/processed_writeups/"
-    # db.load_dir(dir=path, collection="WRITEUPS")
-
-    ########## Load from HF #######################
-    # db.load_hf_csv(dataset="./dataset/CyberNative_Code_Vulnerability_Security_DPO.csv", collection="HFCTF")
