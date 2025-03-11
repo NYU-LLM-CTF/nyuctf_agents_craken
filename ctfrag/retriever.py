@@ -37,8 +37,12 @@ class RetrieverManager:
         self.enabled = True
 
     def summarize_context(self, context):
-        processed_text = self.extractor.process_text(context)
-        return processed_text
+        processed_text = self.extractor.process_context(context)
+        return processed_text, self.extractor.get_format_cost()
+    
+    def evaluate_task(self, task, question, answer):
+        evaluation = self.extractor.evaluate_answer(task=task, question=question, answer=answer)
+        return evaluation, self.extractor.get_evaluate_cost()
 
     def rag_generate(self, query, collection, mode="graph", template=None):
         if mode == "graph":
@@ -72,10 +76,7 @@ if __name__ == "__main__":
     # print(answer)
     #task_example = "Analyze Tesla's 2022 financial statements, extract key financial metrics, and compare them with industry standards"
     task_example = "How to reverse?"
-    task_result = agent.summarize_context(TEST_CONTEXT)
-    
-    task_result['questions']=['How to reverse?']
-    print(task_result['questions'])
-    for i, q in enumerate(task_result['questions'], 1):
-        answer = agent.rag_generate(q, mode="chain", collection="WRITEUPS")
-        print(q + "\n" + answer + "\n\n")
+    task_result, fcost = agent.summarize_context(TEST_CONTEXT)
+    for i, q in enumerate(task_result, 0):
+        answer = agent.rag_generate(task_result[i]['question'], mode="self_rag", collection="writeups")
+        print(task_result[i]['question'] + "\n" + answer + "\n\n")
