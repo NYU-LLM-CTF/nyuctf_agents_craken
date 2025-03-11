@@ -103,6 +103,7 @@ class RAGAgent:
         self.wrap.prompt = template_str
         self.wrap.template = ChatPromptTemplate.from_template(self.wrap.prompt)
     
+    # grade retrieved documents for relevent
     def _init_retrieval_grader(self):
         grade_prompt = ChatPromptTemplate.from_messages(
             [
@@ -115,13 +116,12 @@ class RAGAgent:
 
     def grade_retrieval(self, question, documents):
         relevant_docs = []
-        for doc in documents:
-            doc_text = doc.page_content
-            grading_result = self.retrieval_grader.invoke({"question": question, "document": doc_text})
-            if grading_result.binary_score.lower() == "yes":
-                relevant_docs.append(doc)
-        return relevant_docs
+        grading_result = self.retrieval_grader.invoke({"question": question, "document": documents})
+        if grading_result.binary_score.lower() == "yes":
+            relevant_docs.append(documents)
+        return relevant_docs 
     
+    # grade generated output for hallucination
     def _init_hallucination_grader(self):
         hallucination_prompt = ChatPromptTemplate.from_messages(
             [
@@ -136,6 +136,7 @@ class RAGAgent:
         grading_result = self.hallucination_grader.invoke({"documents": docs_content, "generation": generation})
         return grading_result.binary_score.lower() == "yes"
 
+    # grade generated output for answered question or not
     def _init_answer_grader(self):
         answer_prompt = ChatPromptTemplate.from_messages(
             [
@@ -149,6 +150,7 @@ class RAGAgent:
         grading_result = self.answer_grader.invoke({"question": question, "generation": generation})
         return grading_result.binary_score.lower() == "yes"
     
+    # rewrite question
     def _init_question_rewriter(self):
         re_write_prompt = ChatPromptTemplate.from_messages(
             [
@@ -162,8 +164,9 @@ class RAGAgent:
         rewritten_question = self.question_rewriter.invoke({"question": question})
         return rewritten_question
     
+    # generate five different versions of the given user question
     def _multi_query(self):
-        prompt_perspectives = ChatPromptTemplate.from_template(input_variables=["question"], template=self.config.rag_config.template_multi)
+        prompt_perspectives = ChatPromptTemplate.from_template(template=self.config.rag_config.template_multi)
         
         generate_queries = (
             prompt_perspectives 
@@ -173,6 +176,13 @@ class RAGAgent:
         )
         return generate_queries
 
+    # only get the unique docs
+    def get_unique_union(self, documents):
+        flattened_docs = [dumps(doc) for sublist in documents for doc in sublist]
+        unique_docs = list(set(flattened_docs)) 
+        return [loads(doc) for doc in unique_docs]
+
+    # rerank all documents
     def _reciprocal_rank_fusion(self, results: list[list], k=60):
         fused_scores = {}
         for docs in results:
@@ -181,11 +191,21 @@ class RAGAgent:
                 if doc_str not in fused_scores:
                     fused_scores[doc_str] = 0
                 fused_scores[doc_str] += 1 / (rank + k)
-        reranked_results = [
-            (loads(doc), score) for doc, score in sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)
-        ]
-        return [doc for doc, _ in reranked_results]  
 
+        reranked_results = sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)
+
+        unique_docs = set()
+        final_results = []
+
+        for doc_str, _ in reranked_results:
+            doc = loads(doc_str) 
+            if doc_str not in unique_docs: 
+                unique_docs.add(doc_str)
+                final_results.append(doc)
+
+        return final_results  
+
+    # generates multiple sub-questions related to an input question
     def _decompose_question(self, question: str):
         prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.rag_config.template_decompose)
         generate_queries_decomposition = (
@@ -202,26 +222,32 @@ class RAGAgent:
         formatted_string += f"Question: {question}\nAnswer: {answer}\n\n"
         return formatted_string.strip()
     
-    def _answer_sub_questions(self, sub_questions: list[str]):
+    # answer multiple sub-questions related to an input question 
+    def _answer_sub_questions(self, sub_questions):
         decomposition_prompt = ChatPromptTemplate.from_template(template=self.config.rag_config.template_answer_decompose)
-        
-        q_a_pairs = ""
+
+        q_a_pairs_list = [] 
+
         for q in sub_questions:
+            if self.wrap.retriever is None:
+                self._create_retriever()
+
             rag_chain = (
-                {"context": itemgetter("question") | self.retriever,  
-                "question": itemgetter("question"),
-                "q_a_pairs": itemgetter("q_a_pairs")}
+                {"context": lambda x: self.wrap.retriever.get_relevant_documents(x["question"]),  
+                "question": lambda x: x["question"],
+                "q_a_pairs": lambda x: "\n---\n".join(q_a_pairs_list)}  
                 | decomposition_prompt
                 | self.llm
                 | StrOutputParser()
             )
-            
-            answer = rag_chain.invoke({"question": q, "q_a_pairs": q_a_pairs})
+
+            answer = rag_chain.invoke({"question": q, "q_a_pairs": "\n---\n".join(q_a_pairs_list)}) 
             q_a_pair = self.format_qa_pair(q, answer)
-            q_a_pairs += "\n---\n" + q_a_pair
+            q_a_pairs_list.append(q_a_pair) 
 
-        return answer, {"q_a_pairs": q_a_pairs}
+        return answer, {"q_a_pairs": "\n---\n".join(q_a_pairs_list)} 
 
+    # generate a step back question related to an input question
     def _generate_step_back_query(self, question: str):
         examples = [
             {
@@ -257,13 +283,22 @@ class RAGAgent:
         )
         step_back_query = chain.invoke({"question": question})
         return step_back_query
-
+    
     def _retrieve_step_back_context(self, question: str, step_back_query: str):
-        response_prompt = ChatPromptTemplate.from_template(response_prompt_template=self.config.rag_config.template_step_back)
+        if self.wrap.retriever is None:
+            self._create_retriever()
+
+        response_prompt = ChatPromptTemplate.from_template(template=self.config.rag_config.template_step_back)
+
+        normal_docs = self.wrap.retriever.get_relevant_documents(question)
+        step_back_docs = self.wrap.retriever.get_relevant_documents(step_back_query)
+        normal_context_text = "\n\n".join(doc.page_content for doc in normal_docs)
+        step_back_context_text = "\n\n".join(doc.page_content for doc in step_back_docs)
+
         chain = (
             {
-                "normal_context": RunnableLambda(lambda x: x["question"]) | self.wrap.retriever,
-                "step_back_context": step_back_query | self.wrap.retriever,
+                "normal_context": lambda x: normal_context_text,
+                "step_back_context": lambda x: step_back_context_text,
                 "question": lambda x: x["question"],
             }
             | response_prompt
@@ -271,8 +306,12 @@ class RAGAgent:
             | StrOutputParser()
         )
 
-        result = chain.invoke({"question": question})
-        return result
+        response = chain.invoke({"question": question})
+        return {
+            "response": response,
+            "normal_context_docs": normal_docs,
+            "step_back_context_docs": step_back_docs
+        }
 
     def _search(self, question):
         import pdb; pdb.set_trace()
@@ -293,16 +332,15 @@ class RAGAgent:
         if self.config.feature_config.question_rewriting:
             state["question"] = self.rewrite_question(state["question"])
         if self.config.feature_config.multi_query:
-            questions = self._multi_query(state["question"])
-            all_docs = []
-            for question in questions:
-                docs = self._search(question)
-                all_docs.extend(docs)
-            
-            unique_docs = list({doc.page_content: doc for doc in all_docs}.values())
-            final_docs=unique_docs
+            questions = self._multi_query()
+            retrieval_chain = (
+                questions
+                | self.wrap.vector_store.as_retriever().map()
+                | self.get_unique_union
+            )
+            final_docs = retrieval_chain.invoke({"question": state["question"]})
         if self.config.feature_config.rag_fusion:
-            questions = self._multi_query(state["question"])
+            questions = self._multi_query()
 
             queries = questions.invoke({"question": state["question"]})
             results = [self._search(query) for query in queries]
@@ -313,13 +351,10 @@ class RAGAgent:
             answer,q_a_results = self._answer_sub_questions(sub_questions)
             final_docs=q_a_results["q_a_pairs"]
             final_answer=answer
-            
         if self.config.feature_config.step_back:
             step_back_query = self._generate_step_back_query(state["question"])
-            synthesized_result = self._retrieve_step_back_context(state["question"], step_back_query)
-            final_docs=synthesized_result["normal_context"]
-            final_answer=synthesized_result["step_back_context"]
-            return {"context": synthesized_result["normal_context"], "answer": synthesized_result["step_back_context"]}
+            _, step_back_context, synthesized_result = self._retrieve_step_back_context(state["question"], step_back_query)
+            return {"context": step_back_context, "answer": synthesized_result}
 
         else:
             final_docs = self._search(state["question"])
@@ -330,7 +365,6 @@ class RAGAgent:
 
         if self.config.feature_config.retrieval_grading:
             final_docs = self.grade_retrieval(state["question"], final_docs)
-
         if self.config.feature_config.decomposition:
             return {"context": final_docs, "answer": final_answer}
         if self.config.feature_config.step_back:
@@ -339,7 +373,8 @@ class RAGAgent:
             return {"context": final_docs}
 
     def generate(self, state: State):
-        docs_content = "\n\n".join(doc.page_content for doc in state["context"])
+        docs_content = "\n\n".join(doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in state["context"])
+    
         messages = self.wrap.template.invoke({"question": state["question"], "context": docs_content})
         response = self.llm.invoke(messages)
         if self.config.feature_config.hallucination_grading:
@@ -347,14 +382,14 @@ class RAGAgent:
 
             if not grounded_content:
                 return {
-                    "error": "The response contains no verified factual content.",
+                    "answer": "The response contains no verified factual content.",
                     "suggestion": "Consider refining your query for more accurate results."
                 }
         if self.config.feature_config.answer_grading:
-            is_relevant = self.grade_answer(state["question"], grounded_content)
+            is_relevant = self.grade_answer(state["question"], response)
             if not is_relevant:
                 return {
-                    "error": "The response does not directly answer the question.",
+                    "answer": "The response does not directly answer the question.",
                     "suggestion": "Consider rephrasing your question or asking for specific details."
                 }
         return {"answer": response.content}
@@ -368,6 +403,15 @@ class RAGAgent:
     def chain_retrieve(self, query, collection, template) -> None:
         self._create_vector(collection=collection)
         self._create_template(template_str=template)
+
+        """ state = {"question": query, "context": [], "answer": ""}
+        retrieval_result = self.retrieve(state)
+
+        state["context"] = retrieval_result.get("context", [])
+
+        generated_result = self.generate(state)
+        return generated_result["answer"] """
+        
         retriever = self.wrap.vector_store.as_retriever()
         rag_chain = (
             {"context": retriever,  "question": RunnablePassthrough()}
@@ -387,24 +431,20 @@ class RAGAgent:
         return result
 
     def retrieve_node(self, state: State):
-        
-        if state["recursion_depth"] > self.MAX_RETRIES:
-            print("Maximum recursion depth reached. Terminating workflow.")
-            #return {"context": [], "answer": "Max retries reached. Stopping execution."} 
-            return END
         state["recursion_depth"] += 1
-
         print("---RETRIEVE NODE---")
-        retrieval_result = self.retrieve(state)
-        state["context"] = retrieval_result["context"]
+        retriever = self.wrap.vector_store.as_retriever()
+        rag_chain = (
+            {"context": retriever,  "question": RunnablePassthrough()}
+            | self.wrap.template
+            | self.llm
+            | StrOutputParser()
+        )
+        result = rag_chain.invoke(state["question"])
+        state["context"] = result
         return state
 
     def generate_node(self, state: State):
-       
-        if state["recursion_depth"] > self.MAX_RETRIES:
-            print("Maximum recursion depth reached. Terminating workflow.")
-            #return {"context": [], "answer": "Max retries reached. Stopping execution."} 
-            return END
         state["recursion_depth"] += 1
 
         print("---GENERATE NODE---")
@@ -417,24 +457,16 @@ class RAGAgent:
         question = state["question"]
         documents = state["context"]
         filtered_docs = self.grade_retrieval(question, documents)
+        state["recursion_depth"] += 1
 
         if not filtered_docs:
             print("---NO RELEVANT DOCUMENTS FOUND---")
-            if state["recursion_depth"] > self.MAX_RETRIES:
-                print("Maximum recursion depth reached. Terminating workflow.")
-                return END
-            state["recursion_depth"] += 1
-            return {"context": [], "retry": True}
-    
+            
         state["context"] = filtered_docs
         return state
 
     def transform_query_node(self, state: State):
         state["recursion_depth"] += 1
-        if state["recursion_depth"] > self.MAX_RETRIES:
-            print("Maximum recursion depth reached. Terminating workflow.")
-            return END
-
         print("---TRANSFORM QUERY NODE---")
         question = state["question"]
         rewritten_question = self.rewrite_question(question)
@@ -444,28 +476,21 @@ class RAGAgent:
     def decide_to_generate(self, state: State):
         print("---ASSESS GRADED DOCUMENTS---")
         documents = state["context"]
-        if "retry_count" not in state:
-            state["retry_count"] = 0
         if not documents:
             print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---")
-            state["recursion_depth"] += 1
             if state["recursion_depth"] > self.MAX_RETRIES:
                 print("---MAX RECURSION DEPTH REACHED. Stopping workflow.---")
-                return END 
-
-            return {"next_step": "transform_query"}
+                return "end"     
+            return "transform_query"
         else:
             print("---DECISION: GENERATE---")
-            return {"next_step": "generate"}
+            return "generate"
     
     def grade_generation_v_documents_and_question(self, state: State):
         print("---CHECK HALLUCINATIONS---")
         question = state["question"]
         documents = state["context"] 
         generation = state.get("answer", "")  
-
-        if "retry_count" not in state:
-            state["retry_count"] = 0
 
         score = self.hallucination_grader.invoke({"documents": documents, "generation": generation})
         grade = score.binary_score
@@ -477,28 +502,20 @@ class RAGAgent:
             grade = score.binary_score
             if grade == "yes":
                 print("---DECISION: GENERATION ADDRESSES QUESTION---")
-                #return "useful"
-                #return {"answer": generation}
-                return END
+                return "useful"
+                
             else:
                 print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---")
-                state["retry_count"] += 1
-                if state["retry_count"] >= self.MAX_RETRIES:
+                if state["recursion_depth"] > self.MAX_RETRIES:
                     print("---MAX RETRIES REACHED. STOPPING RECURSION---")
-                    #return "useful"  # Prevent further recursion
-                    return END
-                    #return {"context": [], "answer": "Answer does not address the question. Stopping execution."} 
-
+                    return "end"
+                
                 return "not useful"
         else:
             print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
-            state["retry_count"] += 1
-            if state["retry_count"] >= self.MAX_RETRIES:
+            if state["recursion_depth"] > self.MAX_RETRIES:
                 print("---MAX RETRIES REACHED. STOPPING RECURSION---")
-                #return "useful"  # Prevent further recursion
-                return END
-                #return {"context": [], "answer": "Answer is not grounded in facts. Stopping execution."}  
-
+                return "end"
             return "not supported"
 
     def build_rag_graph(self):
@@ -518,7 +535,7 @@ class RAGAgent:
             {
                 "transform_query": "transform_query", 
                 "generate": "generate",  
-                "stop": END,
+                "end": END,
             },
         )
 
@@ -529,10 +546,9 @@ class RAGAgent:
             self.grade_generation_v_documents_and_question, 
             {
                 "not supported": "generate",  
-                #"not supported": END,
                 "useful": END,  
                 "not useful": "transform_query",  
-                "stop": END,
+                "end": END,
             },
         )
 
@@ -548,24 +564,19 @@ class RAGAgent:
         if app is None:
             raise RuntimeError("Graph compilation failed. Cannot proceed with RAG workflow.")
 
-        """ # Ensure `app.config` exists before modifying it
-        if not hasattr(app, "config") or app.config is None:
-            app.config = {}  # Initialize config if it's None
-
-        app.config["recursion_limit"] = 50  # Increase recursion limit """
-
         inputs = {"question": query, "context": [], "answer": "","recursion_depth": 0}
 
         final_output = None
         for output in app.stream(inputs):
             for key, value in output.items():
-                pprint(f"Node '{key}':")
-
-            pprint("\n---\n")  
+                pprint(f"Node '{key}':") 
             final_output = value 
-
-        if final_output and "answer" in final_output:
+            
+        if final_output and "answer" in final_output and final_output["answer"] != '':
             return {"answer": final_output["answer"]}
+        elif final_output and "context" in final_output and final_output["context"] != '':
+            final_answer = "\n".join(final_output["context"]) + "\n\n"
+            return {"answer": final_answer}
         else:
             return {"error": "The workflow could not generate a valid response."}
         

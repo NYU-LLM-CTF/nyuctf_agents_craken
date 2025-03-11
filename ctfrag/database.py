@@ -72,6 +72,9 @@ class RAGDatabase:
                 pass
 
     def _parse_file(self, path, collection, embeddings, text_splitter, args):
+        if os.path.getsize(path) < 1024:  
+            #print(f"[SKIP] {path} is too small ({os.path.getsize(path)} bytes).")
+            return
         if path.endswith((".csv", ".tsv", ".json", ".yaml", ".yml", ".xls", ".xlsx")):
             self.load_multirow(path=path, collection=collection, 
                                 embeddings=embeddings, text_splitter=text_splitter, 
