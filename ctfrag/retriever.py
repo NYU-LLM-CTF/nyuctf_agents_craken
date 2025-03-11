@@ -70,8 +70,12 @@ if __name__ == "__main__":
     # # context, answer = agent.rag_generate(response, collection="HFCTF")
     # # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
     # print(answer)
-    task_example = "Analyze Tesla's 2022 financial statements, extract key financial metrics, and compare them with industry standards"
+    #task_example = "Analyze Tesla's 2022 financial statements, extract key financial metrics, and compare them with industry standards"
+    task_example = "How to reverse?"
     task_result = agent.summarize_context(TEST_CONTEXT)
+    
+    task_result['questions']=['How to reverse?']
+    print(task_result['questions'])
     for i, q in enumerate(task_result['questions'], 1):
-        answer = agent.rag_generate(q, mode="chain", collection="writeups")
+        answer = agent.rag_generate(q, mode="chain", collection="WRITEUPS")
         print(q + "\n" + answer + "\n\n")
