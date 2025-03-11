@@ -8,6 +8,7 @@ from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
 from langgraph.graph import START, END, StateGraph
+from langchain_openai import OpenAIEmbeddings
 from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
 from langchain_community.document_compressors.rankllm_rerank import RankLLMRerank
 from langchain.load import dumps, loads
@@ -59,11 +60,11 @@ class RAGAgent:
 
     def _setup_db(self, db_storage):
         if db_storage == "milvus":
-            return MilvusDB()
+            return MilvusDB(embeddings=OpenAIEmbeddings())
         elif db_storage == "weaviate":
             return WeaviateDB()
         else:
-            return MilvusDB()
+            return MilvusDB(embeddings=OpenAIEmbeddings())
 
     def _create_compressor(self, compressor: str):
         if compressor == "RankLLMRerank":

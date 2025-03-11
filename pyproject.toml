@@ -36,7 +36,6 @@ dependencies = [
   "ragatouille",
   "rank-llm",
   "weaviate-client",
-  "pymilvus",
   "langgraph",
   "langchain_milvus",
   "rank_llm",
@@ -51,6 +50,7 @@ dependencies = [
   "readability-lxml",
   "duckduckgo-search",
   "newspaper3k",
+  "newspaper4k",
   "lxml-html-clean",
 ]
 

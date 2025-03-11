@@ -8,8 +8,8 @@ from overrides import override
 from langchain_openai import OpenAIEmbeddings
 
 class WeaviateDB(BaseVectorDB):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, embeddings) -> None:
+        super().__init__(embeddings=embeddings)
         self.port = 50050
         self.host = "0.0.0.0"
         self.grpc_port = 50051
@@ -20,10 +20,10 @@ class WeaviateDB(BaseVectorDB):
         )
     
     @override
-    def insert_document(self, documents: List[Document], embeddings, collection: str):
+    def insert_document(self, documents: List[Document], collection: str):
         if self.client:
             db = WeaviateVectorStore.from_documents(
-                documents, embeddings, distance_strategy=DistanceStrategy.COSINE, client=self.client, index_name=collection
+                documents, self.embeddings, distance_strategy=DistanceStrategy.COSINE, client=self.client, index_name=collection
             )
     
     @override
