@@ -1,6 +1,7 @@
 from ctfrag.database import RAGDatabase
 from ctfrag.db_backend.milvus import MilvusDB
 from ctfrag.db_backend.weaviate import WeaviateDB
+from ctfrag.db_backend.neo4j import Neo4jDB
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.schema.output_parser import StrOutputParser
@@ -15,6 +16,10 @@ from langchain.load import dumps, loads
 from operator import itemgetter
 from pydantic import BaseModel, Field
 from pprint import pprint
+from langchain_neo4j import GraphCypherQAChain, Neo4jGraph
+from langchain_openai import ChatOpenAI
+
+
 
 class State(TypedDict):
     question: str
@@ -50,7 +55,8 @@ class RAGAgent:
         self.database = RAGDatabase(self._setup_db(self.config.db_config.storage), config=config)
         self.graph_builder = StateGraph(State).add_sequence([self.retrieve, self.generate])
         self.graph_builder.add_edge(START, "retrieve")
-        self.graph = self.graph_builder.compile()
+        # self.graph = self.graph_builder.compile()
+        self.graph = Neo4jGraph(url="neo4j://localhost:7687", username="neo4j", password="password", database = "ctfrag101")
         self.wrap = RetrieverWrap()
         self.MAX_RETRIES = 3
         self._init_retrieval_grader()
@@ -63,6 +69,8 @@ class RAGAgent:
             return MilvusDB(embeddings=OpenAIEmbeddings())
         elif db_storage == "weaviate":
             return WeaviateDB()
+        elif db_storage == "neo4j":
+            return Neo4jDB(embeddings=OpenAIEmbeddings())
         else:
             return MilvusDB(embeddings=OpenAIEmbeddings())
 
@@ -396,10 +404,16 @@ class RAGAgent:
         return {"answer": response.content}
     
     def graph_retrieve(self, query, collection, template):
-        self._create_vector(collection=collection)
-        self._create_template(template_str=template)
-        result = self.graph.invoke({"question": query})
-        return {"context": result["context"], "answer": result["answer"]}
+        # self._create_vector(collection=collection)
+        # self._create_template(template_str=template)
+        # result = self.graph.invoke({"question": query})
+        # return {"context": result["context"], "answer": result["answer"]}
+        chain = GraphCypherQAChain.from_llm(
+            ChatOpenAI(temperature=0), graph=self.graph, verbose=True, top_k=5, allow_dangerous_requests=True
+        )
+
+        result = chain.invoke({"query": query})['result']
+        return result
     
     def chain_retrieve(self, query, collection, template) -> None:
         self._create_vector(collection=collection)

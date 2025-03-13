@@ -46,8 +46,8 @@ class RetrieverManager:
 
     def rag_generate(self, query, collection, mode="graph", template=None):
         if mode == "graph":
-            results = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.rag_config.template_main)
-            answer = results["answer"]
+            answer = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.rag_config.template_main)
+            # answer = results["answer"]
         elif mode == "self_rag":
             results = self.retrieval_alg.self_rag_retrieve(query, collection, template if template else self.config.rag_config.template_main)
             answer = results["answer"]
@@ -75,8 +75,9 @@ if __name__ == "__main__":
     # # context, answer = agent.rag_generate("What is decomposition", collection="HFCTF")
     # print(answer)
     #task_example = "Analyze Tesla's 2022 financial statements, extract key financial metrics, and compare them with industry standards"
-    task_example = "How to reverse?"
-    task_result, fcost = agent.summarize_context(TEST_CONTEXT)
+    task_example = "Explain Buffer Overflow with detailed steps?" #"How to reverse?"
+    task_result, fcost = agent.summarize_context(task_example)
     for i, q in enumerate(task_result, 0):
-        answer = agent.rag_generate(task_result[i]['question'], mode="self_rag", collection="writeups")
+        # answer = agent.rag_generate(task_result[i]['question'], mode="self_rag", collection="writeups")
+        answer = agent.rag_generate(task_result[i]['question'], mode="graph", collection="ctfrag101")
         print(task_result[i]['question'] + "\n" + answer + "\n\n")
