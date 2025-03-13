@@ -53,6 +53,8 @@ dependencies = [
   "newspaper3k",
   "newspaper4k",
   "lxml-html-clean",
+  "neo4j",
+  "langchain_neo4j",
 ]
 
 [tool.hatch.build.targets.wheel]
