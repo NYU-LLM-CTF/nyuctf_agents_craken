@@ -97,7 +97,7 @@ class WebSearch:
             
         if self.search_engine in ["duckduckgo", "hybrid"]:
             self.duckduckgo_search = DuckDuckGoSearchResults(output_format="list")
-            
+        
         self.prompt = PromptTemplate(input_variables=["query"], template=self.config.prompts.search_main)
         self.keyword_chain = self.prompt | self.llm
         

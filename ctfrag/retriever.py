@@ -28,9 +28,9 @@ class RetrieverManager:
         self.model = self.config.agent_config.model_name
         self.llm = LLMs(model=self.model, config={"temperature": self.config.agent_config.model_temperature})()
         self.embeddings = EmbeddingModel(self.config.db_config.embeddings)()
-        self.retrieval_alg = RAGAgent(llm=self.llm, embeddings=self.embeddings, config=config)
-        self.web_search = WebSearch(llm=self.llm)
-        self.extractor = QuestionExtractor(self.llm)
+        self.retrieval_alg = RAGAgent(llm=self.llm, embeddings=self.embeddings, config=self.config)
+        self.web_search = WebSearch(llm=self.llm, config=self.config)
+        self.extractor = QuestionExtractor(self.llm, config=self.config)
         self.history = []
         self.enabled = False
     

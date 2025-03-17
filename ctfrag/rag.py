@@ -135,7 +135,7 @@ class RAGAgent:
     def _init_hallucination_grader(self):
         hallucination_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.prompt.rag_hallucination_grading),
+                ("system", self.config.prompts.rag_hallucination_grading),
                 ("human", "Set of facts: \n\n {documents} \n\n LLM generation: {generation}"),
             ]
         )
@@ -164,7 +164,7 @@ class RAGAgent:
     def _init_question_rewriter(self):
         re_write_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.prompt.rag_question_rewriting),
+                ("system", self.config.prompts.rag_question_rewriting),
                 ("human", "Here is the initial question: \n\n {question} \n Formulate an improved question."),
             ]
         )
