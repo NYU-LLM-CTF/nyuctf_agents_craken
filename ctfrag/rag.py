@@ -2,6 +2,7 @@ from ctfrag.database import RAGDatabase
 from ctfrag.db_backend.milvus import MilvusDB
 from ctfrag.db_backend.weaviate import WeaviateDB
 from ctfrag.db_backend.neo4j import Neo4jDB
+from ctfrag.config import RetrieverConfig
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
@@ -44,7 +45,7 @@ class GradeAnswer(BaseModel):
     binary_score: str = Field(description="Answer addresses the question, 'yes' or 'no'")
 
 class RAGAgent:
-    def __init__(self, llm=None, embeddings=None, config={}) -> None:
+    def __init__(self, llm=None, embeddings=None, config:RetrieverConfig=None) -> None:
         self.llm = llm
         self.embeddings = embeddings
         self.config = config
@@ -116,7 +117,7 @@ class RAGAgent:
     def _init_retrieval_grader(self):
         grade_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.rag_config.template_retrieval_grading),
+                ("system", self.config.prompts.rag_retrieval_grading),
                 ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
             ]
         )
@@ -134,7 +135,7 @@ class RAGAgent:
     def _init_hallucination_grader(self):
         hallucination_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.rag_config.template_hallucination_grading),
+                ("system", self.config.prompts.rag_hallucination_grading),
                 ("human", "Set of facts: \n\n {documents} \n\n LLM generation: {generation}"),
             ]
         )
@@ -149,7 +150,7 @@ class RAGAgent:
     def _init_answer_grader(self):
         answer_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.rag_config.template_answer_grading),
+                ("system", self.config.prompts.rag_answer_grading),
                 ("human", "User question: \n\n {question} \n\n LLM generation: {generation}"),
             ]
         )
@@ -163,7 +164,7 @@ class RAGAgent:
     def _init_question_rewriter(self):
         re_write_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.config.rag_config.template_question_rewriting),
+                ("system", self.config.prompts.rag_question_rewriting),
                 ("human", "Here is the initial question: \n\n {question} \n Formulate an improved question."),
             ]
         )
@@ -175,7 +176,7 @@ class RAGAgent:
     
     # generate five different versions of the given user question
     def _multi_query(self):
-        prompt_perspectives = ChatPromptTemplate.from_template(template=self.config.rag_config.template_multi)
+        prompt_perspectives = ChatPromptTemplate.from_template(template=self.config.prompts.rag_multi)
         
         generate_queries = (
             prompt_perspectives 
@@ -216,7 +217,7 @@ class RAGAgent:
 
     # generates multiple sub-questions related to an input question
     def _decompose_question(self, question: str):
-        prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.rag_config.template_decompose)
+        prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.prompts.rag_decompose)
         generate_queries_decomposition = (
             prompt_decomposition
             | self.llm
@@ -233,7 +234,7 @@ class RAGAgent:
     
     # answer multiple sub-questions related to an input question 
     def _answer_sub_questions(self, sub_questions):
-        decomposition_prompt = ChatPromptTemplate.from_template(template=self.config.rag_config.template_answer_decompose)
+        decomposition_prompt = ChatPromptTemplate.from_template(template=self.config.prompts.rag_answer_decompose)
 
         q_a_pairs_list = [] 
 
@@ -258,16 +259,9 @@ class RAGAgent:
 
     # generate a step back question related to an input question
     def _generate_step_back_query(self, question: str):
-        examples = [
-            {
-                "input": "Could the members of The Police perform lawful arrests?",
-                "output": "What can the members of The Police do?",
-            },
-            {
-                "input": "Jan Sindel's was born in what country?",
-                "output": "What is Jan Sindel's personal history?",
-            },
-        ]
+
+        examples = [{"input": self.config.prompts.rag_step_back_inputs[i], "output": self.config.prompts.rag_step_back_outputs[i]} 
+                    for i in range(len(self.config.prompts.rag_step_back_inputs))]
         example_prompt = ChatPromptTemplate.from_messages(
             [
                 ("human", "{input}"),
@@ -280,7 +274,7 @@ class RAGAgent:
         )
         step_back_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", """You are an expert at world knowledge. Your task is to step back and paraphrase a question to a more general form."""),
+                ("system", self.config.prompts.rag_step_back_system),
                 few_shot_prompt,
                 ("user", "{question}"),
             ]
@@ -297,7 +291,7 @@ class RAGAgent:
         if self.wrap.retriever is None:
             self._create_retriever()
 
-        response_prompt = ChatPromptTemplate.from_template(template=self.config.rag_config.template_step_back)
+        response_prompt = ChatPromptTemplate.from_template(template=self.config.prompts.rag_step_back_response)
 
         normal_docs = self.wrap.retriever.get_relevant_documents(question)
         step_back_docs = self.wrap.retriever.get_relevant_documents(step_back_query)
@@ -382,6 +376,8 @@ class RAGAgent:
             return {"context": final_docs}
 
     def generate(self, state: State):
+        default_answer = "The response contains no verified factual content."
+        default_suggestion = "Consider refining your query for more accurate results."
         docs_content = "\n\n".join(doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in state["context"])
     
         messages = self.wrap.template.invoke({"question": state["question"], "context": docs_content})
@@ -391,15 +387,15 @@ class RAGAgent:
 
             if not grounded_content:
                 return {
-                    "answer": "The response contains no verified factual content.",
-                    "suggestion": "Consider refining your query for more accurate results."
+                    "answer": default_answer,
+                    "suggestion": default_suggestion
                 }
         if self.config.feature_config.answer_grading:
             is_relevant = self.grade_answer(state["question"], response)
             if not is_relevant:
                 return {
-                    "answer": "The response does not directly answer the question.",
-                    "suggestion": "Consider rephrasing your question or asking for specific details."
+                    "answer": default_answer,
+                    "suggestion": default_suggestion
                 }
         return {"answer": response.content}
     

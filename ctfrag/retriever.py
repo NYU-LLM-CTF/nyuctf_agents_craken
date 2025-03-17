@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 from ctfrag.rag import RAGAgent
 from ctfrag.config import RetrieverConfig
-from ctfrag.qformatter import QuestionExtractor
+from ctfrag.extractor import QuestionExtractor
 from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
 # os.environ["PYTHONWARNINGS"] = "ignore"
@@ -28,9 +28,9 @@ class RetrieverManager:
         self.model = self.config.agent_config.model_name
         self.llm = LLMs(model=self.model, config={"temperature": self.config.agent_config.model_temperature})()
         self.embeddings = EmbeddingModel(self.config.db_config.embeddings)()
-        self.retrieval_alg = RAGAgent(llm=self.llm, embeddings=self.embeddings, config=config)
-        self.web_search = WebSearch(llm=self.llm)
-        self.extractor = QuestionExtractor(self.llm)
+        self.retrieval_alg = RAGAgent(llm=self.llm, embeddings=self.embeddings, config=self.config)
+        self.web_search = WebSearch(llm=self.llm, config=self.config)
+        self.extractor = QuestionExtractor(self.llm, config=self.config)
         self.history = []
         self.enabled = False
     
@@ -47,13 +47,13 @@ class RetrieverManager:
 
     def rag_generate(self, query, collection, mode="graph", template=None):
         if mode == "graph":
-            answer = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.rag_config.template_main)
+            answer = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.prompts.rag_main)
             # answer = results["answer"]
         elif mode == "self_rag":
-            results = self.retrieval_alg.self_rag_retrieve(query, collection, template if template else self.config.rag_config.template_main)
+            results = self.retrieval_alg.self_rag_retrieve(query, collection, template if template else self.config.prompts.rag_main)
             answer = results["answer"]
         else:
-            answer = self.retrieval_alg.chain_retrieve(query, collection, template if template else self.config.rag_config.template_main)
+            answer = self.retrieval_alg.chain_retrieve(query, collection, template if template else self.config.prompts.rag_main)
         self.history.append({
             "query": query,
             "collection": collection,
