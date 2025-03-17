@@ -259,16 +259,9 @@ class RAGAgent:
 
     # generate a step back question related to an input question
     def _generate_step_back_query(self, question: str):
-        examples = [
-            {
-                "input": "Could the members of The Police perform lawful arrests?",
-                "output": "What can the members of The Police do?",
-            },
-            {
-                "input": "Jan Sindel's was born in what country?",
-                "output": "What is Jan Sindel's personal history?",
-            },
-        ]
+
+        examples = [{"input": self.config.prompts.rag_step_back_inputs[i], "output": self.config.prompts.rag_step_back_outputs[i]} 
+                    for i in range(len(self.config.prompts.rag_step_back_inputs))]
         example_prompt = ChatPromptTemplate.from_messages(
             [
                 ("human", "{input}"),
@@ -281,7 +274,7 @@ class RAGAgent:
         )
         step_back_prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", """You are an expert at world knowledge. Your task is to step back and paraphrase a question to a more general form."""),
+                ("system", self.config.prompts.rag_step_back_system),
                 few_shot_prompt,
                 ("user", "{question}"),
             ]
@@ -298,7 +291,7 @@ class RAGAgent:
         if self.wrap.retriever is None:
             self._create_retriever()
 
-        response_prompt = ChatPromptTemplate.from_template(template=self.config.prompts.rag_step_back)
+        response_prompt = ChatPromptTemplate.from_template(template=self.config.prompts.rag_step_back_response)
 
         normal_docs = self.wrap.retriever.get_relevant_documents(question)
         step_back_docs = self.wrap.retriever.get_relevant_documents(step_back_query)
@@ -383,6 +376,8 @@ class RAGAgent:
             return {"context": final_docs}
 
     def generate(self, state: State):
+        default_answer = "The response contains no verified factual content."
+        default_suggestion = "Consider refining your query for more accurate results."
         docs_content = "\n\n".join(doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in state["context"])
     
         messages = self.wrap.template.invoke({"question": state["question"], "context": docs_content})
@@ -392,15 +387,15 @@ class RAGAgent:
 
             if not grounded_content:
                 return {
-                    "answer": "The response contains no verified factual content.",
-                    "suggestion": "Consider refining your query for more accurate results."
+                    "answer": default_answer,
+                    "suggestion": default_suggestion
                 }
         if self.config.feature_config.answer_grading:
             is_relevant = self.grade_answer(state["question"], response)
             if not is_relevant:
                 return {
-                    "answer": "The response does not directly answer the question.",
-                    "suggestion": "Consider rephrasing your question or asking for specific details."
+                    "answer": default_answer,
+                    "suggestion": default_suggestion
                 }
         return {"answer": response.content}
     

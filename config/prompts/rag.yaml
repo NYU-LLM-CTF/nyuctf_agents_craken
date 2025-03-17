@@ -26,14 +26,6 @@ answer_decompose_query: |
   Here is additional context relevant to the question: 
   \n --- \n {context} \n --- \n
   Use the above context and any background question + answer pairs to answer the question: \n {question}
-step_back: |
-  You are an expert of world knowledge. I am going to ask you a question. Your response should synthesize both the original and paraphrased contexts.
-  Context from the original question:
-  {normal_context}
-  Context from the paraphrased question:
-  {step_back_context}
-  Original Question: {question}
-  Synthesized Answer:
 retrieval_grading: |
   You are a grader assessing relevance of a retrieved document to a user question.
   It does not need to be a stringent test. The goal is to filter out erroneous retrievals.
@@ -49,3 +41,21 @@ question_rewriting: |
   You are a question re-writer that converts an input question to a better version 
   that is optimized for vectorstore retrieval. Look at the input and try to reason 
   about the underlying semantic intent / meaning.
+step_back:
+  step_back_system: |
+    You are an expert at world knowledge. Your task is to step back and paraphrase a question to a more general form.
+  step_back_response: |
+    You are an expert of world knowledge. I am going to ask you a question. Your response should synthesize both the original and paraphrased contexts.
+    Context from the original question:
+    {normal_context}
+    Context from the paraphrased question:
+    {step_back_context}
+    Original Question: {question}
+    Synthesized Answer:
+  example_inputs:
+    - "Could the members of The Police perform lawful arrests?"
+    - "Jan Sindel's was born in what country?"
+  example_outputs:
+    - "What can the members of The Police do?"
+    - "What is Jan Sindel's personal history?"
+  

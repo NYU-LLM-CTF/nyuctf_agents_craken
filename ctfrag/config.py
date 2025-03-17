@@ -37,7 +37,10 @@ class PromptConfig:
     rag_multi: str
     rag_decompose: str
     rag_answer_decompose: str
-    rag_step_back: str
+    rag_step_back_system: str
+    rag_step_back_response: str
+    rag_step_back_inputs: list[str]
+    rag_step_back_outputs: list[str]
     rag_retrieval_grading: str
     rag_hallucination_grading: str
     rag_answer_grading: str
@@ -143,7 +146,10 @@ class RetrieverConfig:
             rag_multi=rag_prompts_cfg.get("multi_query", ""),
             rag_decompose=rag_prompts_cfg.get("decompose_query", ""),
             rag_answer_decompose=rag_prompts_cfg.get("answer_decompose_query", ""),
-            rag_step_back=rag_prompts_cfg.get("step_back", ""),
+            rag_step_back_system=rag_prompts_cfg.get("step_back", {}).get("step_back_system", ""),
+            rag_step_back_response=rag_prompts_cfg.get("step_back", {}).get("step_back_response", ""),
+            rag_step_back_inputs=rag_prompts_cfg.get("step_back", {}).get("example_inputs", [""]),
+            rag_step_back_outputs=rag_prompts_cfg.get("step_back", {}).get("example_outputs", [""]),
             rag_retrieval_grading=rag_prompts_cfg.get("retrieval_grading", ""),
             rag_hallucination_grading=rag_prompts_cfg.get("hallucination_grading", ""),
             rag_answer_grading=rag_prompts_cfg.get("answer_grading", ""),
