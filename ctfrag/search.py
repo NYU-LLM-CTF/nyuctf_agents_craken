@@ -1,4 +1,3 @@
-from langchain_google_community import GoogleSearchAPIWrapper
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.schema.document import Document
@@ -105,7 +104,6 @@ class WebSearch:
         
         # Initialize search providers based on selected option
         if self.search_engine in ["google", "hybrid"]:
-            self.google_search = GoogleSearchAPIWrapper()
             # Google search API configuration
             self.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
             self.GOOGLE_SEARCH_ID = os.getenv("GOOGLE_CSE_ID")

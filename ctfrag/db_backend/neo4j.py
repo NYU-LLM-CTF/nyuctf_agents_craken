@@ -3,6 +3,7 @@ from langchain_core.documents import Document
 from .base import BaseVectorDB
 from overrides import override
 from neo4j import GraphDatabase
+from langchain_neo4j import Neo4jGraph
 import json
 
 class Neo4jDB(BaseVectorDB):
@@ -73,9 +74,12 @@ class Neo4jDB(BaseVectorDB):
     #     pass
 
     @override
-    def create_vector(self, collection):
+    def create_vector(self, collection, embeddings):
         """Return an object that allows query over the Neo4j graph."""
-        return Neo4jDB()
+        return Neo4jDB(embeddings)
+    
+    def create_graph(self, collection):
+        return Neo4jGraph(url=self.uri, username=self.user, password=self.password, database=collection)
 
     @override
     def close_db(self):

@@ -2,7 +2,6 @@ from typing import List
 from langchain_core.documents import Document
 from .base import BaseVectorDB
 from overrides import override
-from langchain_openai import OpenAIEmbeddings
 from langchain_milvus import Milvus
 from pathlib import Path
 from pymilvus import connections, Collection, utility
@@ -51,8 +50,8 @@ class MilvusDB(BaseVectorDB):
         pass
 
     @override
-    def create_vector(self, collection):
-        return Milvus(OpenAIEmbeddings(), connection_args={"uri": str(self.url)}, collection_name=collection)
+    def create_vector(self, collection, embeddings):
+        return Milvus(embeddings, connection_args={"uri": str(self.url)}, collection_name=collection)
 
     @override
     def close_db(self):

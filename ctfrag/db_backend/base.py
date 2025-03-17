@@ -16,7 +16,7 @@ class BaseVectorDB(ABC):
         pass
 
     @abstractmethod
-    def create_vector(self, collection):
+    def create_vector(self, collection, embeddings):
         pass
     
     @abstractmethod

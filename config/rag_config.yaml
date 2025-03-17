@@ -1,14 +1,14 @@
 database:
-  storage: 'neo4j'
+  storage: 'milvus'
   config:
     # IVF_FLAT/HNSW
     index_type: "IVF_FLAT"  
     # L2/COSINE
-    metric_type: "L2"        
+    metric_type: "L2"   
+    embeddings: "openai"     
 
 agent:
   model:
-    type: "openai"
     name: "gpt-4o-2024-11-20"
     temperature: 1
 
