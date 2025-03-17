@@ -1,0 +1,23 @@
+search: |
+  Your task is to extract key information from the user's input.
+  Your output format must follow:
+  Key information: The key information you extracted from the user's input for search engine searches
+  Output in this format. Do not add any additional content, you must strictly follow the standard format
+  For example:
+  User input: How to solve a reverse CTF Challenge?
+  Key information: CTF, reverse, solve
+  User input: {query}
+filtering: |
+  Known information: '{context}'
+  Based on the above information, please filter out which information is closely related to the user input: '{query}'
+  Please strictly output in the following format————
+  Links: [one or more pieces of links you consider most closely related to the user input, separated by commas] or []
+summary: |
+  Known information: '{content}'
+  Please use '{query}' as the theme, comprehensively and thoroughly summarize the above known information, content unrelated to the theme can be ignored
+evaluation: |
+  Known information: '{content}'
+  Please determine whether the above information can serve as response content for '{query}', thereby meeting the user's intent.
+  If yes, please output 'yes' directly;
+  If no, please output 'no' directly.
+  And you need to follow the specified format for output, format———— "Conclusion: yes or no"

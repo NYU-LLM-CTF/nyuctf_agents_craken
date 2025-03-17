@@ -25,17 +25,31 @@ class RAGConfig:
     retriever_type: str
     retriever_search: str
     retriever_params: dict
-    template_main: str
-    template_q: str
-    template_multi: str
-    template_decompose: str
-    template_answer_decompose: str
-    template_step_back: str
-    template_retrieval_grading: str
-    template_hallucination_grading: str
-    template_answer_grading: str
-    template_question_rewriting: str
     collection: str
+
+class PromptConfig:
+    rag_main: str
+    rag_multi: str
+    rag_decompose: str
+    rag_answer_decompose: str
+    rag_step_back: str
+    rag_retrieval_grading: str
+    rag_hallucination_grading: str
+    rag_answer_grading: str
+    rag_question_rewriting: str
+    search_main: str
+    search_filtering: str
+    search_summary: str
+    search_evaluation: str
+    extract_context_to_task: str
+    extract_task_to_question: str
+    extract_question_evaluation: str
+    extract_answer_evaluation: str
+    extract_w_task_q: str
+    extract_w_task_e: str
+    extract_wo_task_task: str
+    extract_wo_task_q: str
+    extract_wo_task_e: str
 
 @dataclass
 class FeatureConfig:
@@ -59,15 +73,6 @@ Use three sentences maximum and keep the answer concise.
 Question: {question}
 Context: {context}
 Answer:
-"""
-
-DEFAULT_QUESTION = """
-You are an AI assistant specialized in generating query to a RAG system to solve Capture the Flag (CTF) challenges in cybersecurity.
-Your task is to generate proper query for RAG database based on the provided current observation context.
-The generated query should align with common cybersecurity categories such as crypto, web exploitation, reverse engineering, binary exploitation (pwn), forensics, or miscellaneous.
-Based on the current observation provided
-Observation: {observation}
-Give your suggested query to the database.
 """
 
 class RetrieverConfig:
@@ -99,7 +104,6 @@ class RetrieverConfig:
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
             retriever_params=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("params", {"k": 20, "ef": 30}),
             template_main=self.config_yaml.get("retrieval", {}).get("template", {}).get("rag_main", DEFAULT_TEMPATE),
-            template_q=self.config_yaml.get("retrieval", {}).get("template", {}).get("question", DEFAULT_QUESTION),
             template_multi=self.config_yaml.get("retrieval", {}).get("template", {}).get("multi_query"),
             template_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("decompose_query"),
             template_answer_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("answer_decompose_query"),

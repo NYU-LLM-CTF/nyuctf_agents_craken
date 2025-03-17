@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 from ctfrag.rag import RAGAgent
 from ctfrag.config import RetrieverConfig
-from ctfrag.qformatter import QuestionExtractor
+from ctfrag.extractor import QuestionExtractor
 from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
 # os.environ["PYTHONWARNINGS"] = "ignore"

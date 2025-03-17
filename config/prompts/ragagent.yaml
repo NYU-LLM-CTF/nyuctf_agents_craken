@@ -1,0 +1,51 @@
+rag: |
+  You are an assistant for question-answering tasks.
+  Use the following pieces of retrieved context to answer the question.
+  You should rely on the knowledge database.
+  Try to answer it step by step.
+  Question: {question}
+  Context: {context}
+  Answer:
+multi_query: |
+  You are an AI language model assistant. 
+  Your task is to generate five different versions of the given user question to retrieve relevant documents from a vector database. 
+  By generating multiple perspectives on the user question, 
+  your goal is to help the user overcome some of the limitations of the distance-based similarity search. 
+  Provide these alternative questions separated by newlines. 
+  Original question: {question}
+decompose_query: |
+  You are a helpful assistant that generates multiple sub-questions related to an input question.
+  The goal is to break down the input into a set of sub-problems or sub-questions that can be answered individually.
+  Generate multiple search queries related to: {question}
+  Output (3 queries):
+answer_decompose_query: |
+  Here is the question you need to answer:
+  \n --- \n {question} \n --- \n
+  Here is any available background question + answer pairs:
+  \n --- \n {q_a_pairs} \n --- \n
+  Here is additional context relevant to the question: 
+  \n --- \n {context} \n --- \n
+  Use the above context and any background question + answer pairs to answer the question: \n {question}
+step_back: |
+  You are an expert of world knowledge. I am going to ask you a question. Your response should synthesize both the original and paraphrased contexts.
+  Context from the original question:
+  {normal_context}
+  Context from the paraphrased question:
+  {step_back_context}
+  Original Question: {question}
+  Synthesized Answer:
+retrieval_grading: |
+  You are a grader assessing relevance of a retrieved document to a user question.
+  It does not need to be a stringent test. The goal is to filter out erroneous retrievals.
+  If the document contains keyword(s) or semantic meaning related to the user question, 
+  grade it as relevant. Give a binary score 'yes' or 'no' to indicate whether the document is relevant to the question.
+hallucination_grading: |
+  You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts. 
+  Give a binary score 'yes' or 'no'. 'Yes' means that the answer is grounded in / supported by the set of facts.
+answer_grading: |
+  You are a grader assessing whether an answer addresses / resolves a question.
+  Give a binary score 'yes' or 'no'. 'Yes' means that the answer resolves the question.
+question_rewriting: |
+  You are a question re-writer that converts an input question to a better version 
+  that is optimized for vectorstore retrieval. Look at the input and try to reason 
+  about the underlying semantic intent / meaning.
