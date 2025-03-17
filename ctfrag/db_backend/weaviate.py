@@ -5,7 +5,6 @@ from .base import BaseVectorDB
 import weaviate
 from langchain_community.vectorstores.utils import DistanceStrategy
 from overrides import override
-from langchain_openai import OpenAIEmbeddings
 
 class WeaviateDB(BaseVectorDB):
     def __init__(self, embeddings) -> None:
@@ -37,8 +36,8 @@ class WeaviateDB(BaseVectorDB):
             self.client.collections.create(collection)
 
     @override
-    def create_vector(self, collection):
-        return WeaviateVectorStore.from_documents([], OpenAIEmbeddings(), client=self.client, index_name=collection)
+    def create_vector(self, collection, embeddings):
+        return WeaviateVectorStore.from_documents([], embeddings, client=self.client, index_name=collection)
 
     @override
     def close_db(self):

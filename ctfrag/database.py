@@ -6,7 +6,6 @@ import pandas as pd
 from tqdm import tqdm
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 import validators
 from langchain.docstore.document import Document as LangchainDocument
 from tqdm import tqdm
@@ -32,7 +31,6 @@ def find_by_name(name, items):
     return None 
 
 SPLITTERS = [CharacterTextSplitter, RecursiveCharacterTextSplitter]
-EMBEDDINGS = [OpenAIEmbeddings]
 
 class RAGDatabase:
     def __init__(self, database: BaseVectorDB, config={}) -> None:
@@ -101,7 +99,7 @@ class RAGDatabase:
     # text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
     # text_splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
     # embeddings = OpenAIEmbeddings()
-    def load_dataset(self, path=None, collection="default", database="neo4j", args: dict = {
+    def load_dataset(self, path=None, embeddings=None, collection="default", database="neo4j", args: dict = {
         "name_field": "key",
         "data_field": "value",
         "collection": "ctfrag",
@@ -123,7 +121,6 @@ class RAGDatabase:
                     self._parse_file_graphdb(file, collection)
         else:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=args.get("chunk_size", 512), chunk_overlap=args.get("overlap", 50))
-            embeddings = OpenAIEmbeddings()
             if not path:
                 print("Please provide a url or file path")
                 return

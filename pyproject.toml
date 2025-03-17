@@ -47,7 +47,6 @@ dependencies = [
   "llama-parse",
   "pydantic",
   "unstructured[all-docs]",
-  "langchain-google-community",
   "readability-lxml",
   "duckduckgo-search",
   "newspaper3k",
@@ -55,6 +54,8 @@ dependencies = [
   "lxml-html-clean",
   "neo4j",
   "langchain_neo4j",
+  "langchain-together",
+  "langchain-google-genai"
 ]
 
 [tool.hatch.build.targets.wheel]

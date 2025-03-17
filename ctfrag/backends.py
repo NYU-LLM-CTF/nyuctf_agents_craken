@@ -1,0 +1,211 @@
+from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_together import TogetherEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_together import ChatTogether
+from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+from pathlib import Path
+import os
+
+EMBEDDINGS = {
+    "openai": OpenAIEmbeddings,
+    "huggingface": HuggingFaceEmbeddings,
+    "together": TogetherEmbeddings
+}
+
+NAME_ALIAS = {
+    'OPENAI': 'OPENAI_API_KEY',
+    'ANTHROPIC': 'ANTHROPIC_API_KEY',
+    'GEMINI': 'GEMINI_API_KEY',
+    'TOGETHER': 'TOGETHER_API_KEY',
+    'GOOGLE_SEARCH': 'GOOGLE_API_KEY',
+    'GOOGLE_CSE': 'GOOGLE_CSE_ID'
+}
+
+class APIKeysLangChain(dict):
+    """Loads and holds API keys"""
+    def __init__(self, keys: dict):
+        for k, v in keys.items():
+            os.environ[NAME_ALIAS[k]] = v
+
+'''
+Example config
+{
+models: "gpt-4o"
+temperature: 0
+max_tokens=None
+timeout=None
+max_retries: 2
+}
+'''
+class EmbeddingModel:
+    def __init__(self, backend, model=None):
+        self.model = model
+        self.backend = backend
+        if self.model:
+            self.embeddings = EMBEDDINGS[backend](model=model)
+        else:
+            self.embeddings = EMBEDDINGS[backend]()
+
+    def __call__(self):
+        return self.embeddings
+    
+class LLMBackend:
+    def __init__(self, config: dict):
+        self.config = config
+        self.llm = None
+
+    def __call__(self):
+        return self.llm
+
+class OpenAIBackend(LLMBackend):
+    NAME = "openai"
+    MODELS = {
+        "gpt-4o-2024-11-20": {
+            "max_context": 128000,
+            "cost_per_input_token": 2.5e-06,
+            "cost_per_output_token": 10e-06
+        },
+        "gpt-4o-2024-08-06": {
+            "max_context": 128000,
+            "cost_per_input_token": 2.5e-06,
+            "cost_per_output_token": 10e-06
+        },
+        "gpt-4o-2024-05-13": {
+            "max_context": 128000,
+            "cost_per_input_token": 5e-06,
+            "cost_per_output_token": 15e-06
+        },
+        "gpt-4o-mini-2024-07-18": {
+            "max_context": 128000,
+            "cost_per_input_token": 0.15e-06,
+            "cost_per_output_token": 0.6e-06
+        },
+        "gpt-3.5-turbo-1106": {
+            "max_context": 16385,
+            "cost_per_input_token": 1e-06,
+            "cost_per_output_token": 2e-06
+        },
+        "gpt-4-1106-preview": {
+            "max_context": 128000,
+            "cost_per_input_token": 10e-06,
+            "cost_per_output_token": 30e-06
+        },
+        "gpt-4-0125-preview": {
+            "max_context": 128000,
+            "cost_per_input_token": 10e-06,
+            "cost_per_output_token": 30e-06
+        },
+        "gpt-4-turbo-2024-04-09": {
+            "max_context": 128000,
+            "cost_per_input_token": 10e-06,
+            "cost_per_output_token": 30e-06
+        },
+    }
+    def __init__(self, model, config: dict):
+        super().__init__(config)
+        self.llm = ChatOpenAI(model=model, 
+                              temperature=self.config["temperature"])
+
+class TogetherBackend(LLMBackend):
+    NAME = "together"
+    MODELS = {
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo": {
+            "max_context": 131072,
+            "cost_per_input_token": 0.18e-06,
+            "cost_per_output_token": 0.18e-06,
+        },
+        "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo": {
+            "max_context": 131072,
+            "cost_per_input_token": 0.88e-06,
+            "cost_per_output_token": 0.88e-06,
+        },
+        "meta-llama/Llama-3.3-70B-Instruct-Turbo": {
+            "max_context": 131072,
+            "cost_per_input_token": 0.88e-06,
+            "cost_per_output_token": 0.88e-06,
+        },
+        "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo": {
+            "max_context": 130815,
+            "cost_per_input_token": 3.5e-06,
+            "cost_per_output_token": 3.5e-06,
+        }
+    }
+    def __init__(self, model, config: dict):
+        super().__init__(config)
+        self.llm = ChatTogether(model=model, 
+                                temperature=self.config["temperature"])
+
+class AnthropicBackend(LLMBackend):
+    NAME = "anthropic"
+    MODELS = {
+        "claude-3-5-sonnet-20241022": {
+            "max_context": 200000,
+            "cost_per_input_token": 3e-06,
+            "cost_per_output_token": 15e-06
+        },
+        "claude-3-5-haiku-20241022": {
+            "max_context": 200000,
+            "cost_per_input_token": 0.8e-06,
+            "cost_per_output_token": 4e-06
+        }
+    }
+    def __init__(self, model, config: dict):
+        super().__init__(config)
+        self.llm = ChatAnthropic(model=model, 
+                                temperature=self.config["temperature"])
+
+class GeminiBackend(LLMBackend):
+    NAME = "gemini"
+    MODELS = {
+        "gemini-2.0-flash-exp": {
+            "max_context": 1000000,
+            "cost_per_input_token": 0,
+            "cost_per_output_token": 0
+        },
+        "gemini-1.5-flash": {
+            "max_context": 1000000,
+            "cost_per_input_token": 75e-08,
+            "cost_per_output_token": 3e-07
+        },
+        "gemini-1.5-flash-8b": {
+            "max_context": 1000000,
+            "cost_per_input_token": 375e-09,
+            "cost_per_output_token": 15e-08
+        },
+        "gemini-1.5-pro": {
+            "max_context": 2000000,
+            "cost_per_input_token": 125e-08,
+            "cost_per_output_token": 5e-06
+        },
+        # Will be deprecated from 02/15/2025
+        "gemini-1.0-pro": {
+            "max_context": 32000,
+            "cost_per_input_token": 5e-07,
+            "cost_per_output_token": 15e-07
+        }
+    }
+    def __init__(self, model, config: dict):
+        super().__init__(config)
+        self.llm = ChatGoogleGenerativeAI(model=model, 
+                                temperature=self.config["temperature"])
+        
+BACKENDS = [OpenAIBackend, TogetherBackend, AnthropicBackend, GeminiBackend]
+MODELS = {m: b for b in BACKENDS for m in b.MODELS}
+
+class LLMs:
+    def __init__(self, model, config: dict):
+        self.llm = MODELS[model](model, config)
+
+    def __call__(self):
+        return self.llm()
+    
+# if __name__ == "__main__":
+#     with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
+#         for line in f:
+#             key, value = line.strip().split("=")
+#             os.environ[key] = value
+#     a = LLMs("gemini-1.5-flash", config={"temperature": 0})
+#     print(type(a()))

@@ -3,23 +3,18 @@ from ctfrag.db_backend.milvus import MilvusDB
 from ctfrag.db_backend.weaviate import WeaviateDB
 from ctfrag.db_backend.neo4j import Neo4jDB
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
-from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
 from langgraph.graph import START, END, StateGraph
-from langchain_openai import OpenAIEmbeddings
 from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
 from langchain_community.document_compressors.rankllm_rerank import RankLLMRerank
 from langchain.load import dumps, loads
-from operator import itemgetter
 from pydantic import BaseModel, Field
 from pprint import pprint
-from langchain_neo4j import GraphCypherQAChain, Neo4jGraph
-from langchain_openai import ChatOpenAI
-
-
+from langchain_neo4j import GraphCypherQAChain
 
 class State(TypedDict):
     question: str
@@ -49,14 +44,19 @@ class GradeAnswer(BaseModel):
     binary_score: str = Field(description="Answer addresses the question, 'yes' or 'no'")
 
 class RAGAgent:
-    def __init__(self, llm=None, config={}) -> None:
+    def __init__(self, llm=None, embeddings=None, config={}) -> None:
         self.llm = llm
+        self.embeddings = embeddings
         self.config = config
         self.database = RAGDatabase(self._setup_db(self.config.db_config.storage), config=config)
         self.graph_builder = StateGraph(State).add_sequence([self.retrieve, self.generate])
         self.graph_builder.add_edge(START, "retrieve")
-        # self.graph = self.graph_builder.compile()
-        self.graph = Neo4jGraph(url="neo4j://localhost:7687", username="neo4j", password="password", database = "ctfrag101")
+        self.graph_legacy = self.graph_builder.compile()
+        if config.db_config.storage == "neo4j":
+            self.graph = self.database.get_db().create_graph()
+        else:
+            # We don't use graph rag
+            self.graph = None
         self.wrap = RetrieverWrap()
         self.MAX_RETRIES = 3
         self._init_retrieval_grader()
@@ -66,13 +66,13 @@ class RAGAgent:
 
     def _setup_db(self, db_storage):
         if db_storage == "milvus":
-            return MilvusDB(embeddings=OpenAIEmbeddings())
+            return MilvusDB(embeddings=self.embeddings)
         elif db_storage == "weaviate":
             return WeaviateDB()
         elif db_storage == "neo4j":
-            return Neo4jDB(embeddings=OpenAIEmbeddings())
+            return Neo4jDB(embeddings=self.embeddings)
         else:
-            return MilvusDB(embeddings=OpenAIEmbeddings())
+            return MilvusDB(embeddings=self.embeddings)
 
     def _create_compressor(self, compressor: str):
         if compressor == "RankLLMRerank":
@@ -97,7 +97,7 @@ class RAGAgent:
     def _create_vector(self, collection: str=None):
         if not collection:
             raise ValueError("Please specify a collection")
-        self.wrap.vector_store = self.database.get_db().create_vector(collection=collection)
+        self.wrap.vector_store = self.database.get_db().create_vector(collection=collection, embeddings=self.embeddings)
 
     def _create_retriever(self):
         if self.config.feature_config.search_params:
@@ -404,21 +404,29 @@ class RAGAgent:
         return {"answer": response.content}
     
     def graph_retrieve(self, query, collection, template):
-        # self._create_vector(collection=collection)
-        # self._create_template(template_str=template)
-        # result = self.graph.invoke({"question": query})
-        # return {"context": result["context"], "answer": result["answer"]}
         chain = GraphCypherQAChain.from_llm(
-            ChatOpenAI(temperature=0), graph=self.graph, verbose=True, top_k=5, allow_dangerous_requests=True
+            self.llm, graph=self.graph, verbose=True, top_k=5, allow_dangerous_requests=True
         )
 
         result = chain.invoke({"query": query})['result']
         return result
     
-    def chain_retrieve(self, query, collection, template) -> None:
+    def chain_retrieve(self, query, collection, template, graph_lc=False) -> None:
         self._create_vector(collection=collection)
         self._create_template(template_str=template)
-
+        if graph_lc:
+            result = self.graph_legacy.invoke({"question": query})
+            return result["answer"]
+        else:
+            retriever = self.wrap.vector_store.as_retriever()
+            rag_chain = (
+                {"context": retriever,  "question": RunnablePassthrough()}
+                | self.wrap.template
+                | self.llm
+                | StrOutputParser()
+            )
+            result = rag_chain.invoke(query)
+            return result
         """ state = {"question": query, "context": [], "answer": ""}
         retrieval_result = self.retrieve(state)
 
@@ -426,16 +434,6 @@ class RAGAgent:
 
         generated_result = self.generate(state)
         return generated_result["answer"] """
-        
-        retriever = self.wrap.vector_store.as_retriever()
-        rag_chain = (
-            {"context": retriever,  "question": RunnablePassthrough()}
-            | self.wrap.template
-            | self.llm
-            | StrOutputParser()
-        )
-        result = rag_chain.invoke(query)
-        return result
 
     def self_rag_retrieve(self, query, collection, template):
         self._create_vector(collection=collection)

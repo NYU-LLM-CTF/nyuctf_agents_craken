@@ -1,5 +1,3 @@
-from langchain_google_community import GoogleSearchAPIWrapper
-from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.schema.document import Document
 from langchain.text_splitter import CharacterTextSplitter
@@ -83,7 +81,7 @@ class WebSearchResult:
 class WebSearch:
     """Improved web search implementation using LangChain with engine selection"""
     
-    def __init__(self, verbose: bool = False, search_engine: str = "hybrid"):
+    def __init__(self, llm, verbose: bool = False, search_engine: str = "hybrid"):
         self.verbose = verbose
         self.cost_tracker = SearchCostTracker()
         # Set the search engine option (google, duckduckgo, or hybrid)
@@ -97,15 +95,10 @@ class WebSearch:
             
         self.callbacks = [StdOutCallbackHandler()] if verbose else None
         
-        self.llm = ChatOpenAI(
-            model_name="gpt-4o-2024-11-20", 
-            temperature=0.7,
-            callbacks=self.callbacks
-        )
+        self.llm = llm
         
         # Initialize search providers based on selected option
         if self.search_engine in ["google", "hybrid"]:
-            self.google_search = GoogleSearchAPIWrapper()
             # Google search API configuration
             self.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
             self.GOOGLE_SEARCH_ID = os.getenv("GOOGLE_CSE_ID")
@@ -707,9 +700,9 @@ class WebSearch:
             print(f"Traceback: {traceback.format_exc()}")
             return WebSearchResult(content="Error occurred during web search.", websites=[])
 
-if __name__ == "__main__":
-    engine = WebSearch(verbose=True, search_engine="hybrid")
-    result = engine.search_web(r"How to write a good scientific paper?")
-    print(result.content)
-    print(engine.cost_tracker.get_cost_summary())
+# if __name__ == "__main__":
+#     engine = WebSearch(verbose=True, search_engine="hybrid")
+#     result = engine.search_web(r"How to write a good scientific paper?")
+#     print(result.content)
+#     print(engine.cost_tracker.get_cost_summary())
     # print(result.websites)

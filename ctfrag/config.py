@@ -6,10 +6,10 @@ class DatabaseConfig:
     storage: str
     index_type: str
     metric_type: str
+    embeddings: str
 
 @dataclass
 class AgentConfig:
-    model_type: str
     model_name: str
     model_temperature: str
 
@@ -78,10 +78,10 @@ class RetrieverConfig:
             # TODO implement
             index_type=self.config_yaml.get("database", {}).get("config", {}).get("index_type", "IVF_FLAT"),
             # TODO implement
-            metric_type=self.config_yaml.get("database", {}).get("config", {}).get("metric_type", "L2")
+            metric_type=self.config_yaml.get("database", {}).get("config", {}).get("metric_type", "L2"),
+            embeddings=self.config_yaml.get("database", {}).get("embeddings", "openai")
         )
         self.agent_config = AgentConfig(
-            model_type=self.config_yaml.get("agent", {}).get("model", {}).get("type", "openai"),
             model_name=self.config_yaml.get("agent", {}).get("model", {}).get("name", "gpt-4o-mini-2024-07-18"),   
             model_temperature=self.config_yaml.get("agent", {}).get("model", {}).get("temperature", 0)
         )
