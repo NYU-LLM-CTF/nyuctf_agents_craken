@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.output_parser import StrOutputParser
+from ctfrag.config import RetrieverConfig
 import json
 from langchain_community.callbacks import get_openai_callback
 import re
@@ -15,9 +16,10 @@ class LogLevel(Enum):
 
 
 class QuestionExtractor:
-    def __init__(self, llm, log_level: LogLevel = LogLevel.NONE):
+    def __init__(self, llm, log_level: LogLevel = LogLevel.NONE, config: RetrieverConfig=None):
         self.llm = llm
         self.log_level = log_level
+        self.config = config
         self.format_cost = 0
         self.evaluate_cost = 0
         self._init_extractors()
@@ -48,24 +50,7 @@ class QuestionExtractor:
     
     def _init_extractors(self):
         # Step 1: Extract tasks from conversation context
-        self.context_to_tasks_prompt = ChatPromptTemplate.from_template("""
-            You are an expert at analyzing CTF (Capture The Flag) challenge solving contexts.
-            Given the following conversation context (including thoughts and action outputs),
-            determine if this context needs to be broken down into 1-3 subtasks.
-            
-            If the context can only be decomposed into single or fewer tasks, don't provide unncessary tasks.
-            Your decompositon should be concise, you should focus only on helping another agent solve CTF Challenges.                                                                 
-            
-            Conversation Context:
-            ```
-            {context}
-            ```
-            
-            Output Format:
-            Return a JSON array of subtasks. If decomposition is not needed, return a single task that summarizes the main objective.
-            Format: [{{"task": "Description of subtask 1"}}, {{"task": "Description of subtask 2"}}]
-            Only return the JSON array, nothing else.
-            """)
+        self.context_to_tasks_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_context_to_task)
         
         # The chain just receives the context
         self.context_to_tasks_chain = (
@@ -76,27 +61,7 @@ class QuestionExtractor:
         )
         
         # Generate questions for each task
-        self.task_to_question_prompt = ChatPromptTemplate.from_template("""
-            You are an expert at identifying specific information needs for CTF (Capture The Flag) challenge tasks.
-            Given the following task related to a CTF challenge, extract 1 key question that needs to be answered to complete this task.
-            
-            The question should be specific to the techniques, tools, or concepts mentioned in the task.
-            
-            Task:
-            ```
-            {task}
-            ```
-            
-            Original Context (for reference):
-            ```
-            {context}
-            ```
-            
-            Output Format:
-            Return a single question that would help address this task.
-            Make sure the question ends with a question mark.
-            Only return the question text, nothing else.
-            """)
+        self.task_to_question_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_task_to_question)
         
         self.task_to_question_chain = (
             self.task_to_question_prompt
@@ -104,30 +69,7 @@ class QuestionExtractor:
             | StrOutputParser()
         )
         
-        self.question_evaluation_prompt = ChatPromptTemplate.from_template("""
-            Evaluate if the following question is suitable for the given CTF challenge context.
-            
-            Task: {task}
-            Question: {question}
-            Original Context:
-            ```
-            {context}
-            ```
-            
-            Consider these criteria:
-            1. Is the question relevant to the task and context?
-            2. Is the question specific enough to yield useful information?
-            3. Is the question focused on technical aspects needed to solve the challenge?
-            4. Does the context indicate that this information is actually needed?
-            
-            Return a JSON object with the following structure:
-            {{
-              "is_suitable": true/false,
-              "reason": "Brief explanation of your evaluation"
-            }}
-            
-            Only return the JSON object, nothing else.
-            """)
+        self.question_evaluation_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_question_evaluation)
         
         self.question_evaluation_chain = (
             self.question_evaluation_prompt
@@ -137,36 +79,7 @@ class QuestionExtractor:
         )
         
         # IMPROVED: Stricter answer evaluation prompt
-        self.answer_evaluation_prompt = ChatPromptTemplate.from_template("""
-            You are evaluating if an answer to a CTF challenge question contains actually useful information.
-            Be STRICT in your evaluation - answers must provide SPECIFIC, TECHNICAL information to be considered relevant.
-            
-            Task: {task}
-            Question: {question}
-            Answer: {answer}
-            
-            First, check if any of these NON-INFORMATIVE patterns are present:
-            1. "I don't know" or "I'm not sure" or similar disclaimers
-            2. Vague, general statements that don't address the specific technical question
-            3. Responses that only restate the question without adding technical details
-            4. Generic explanations that could apply to any CTF challenge
-            5. Empty promises of information without actually providing it
-            
-            An answer is only RELEVANT if it contains AT LEAST ONE of the following:
-            1. Specific technical details directly related to the question (not just general concepts)
-            2. Named tools, commands, or techniques that could be applied to the task
-            3. Concrete exploitation methods or vulnerability details
-            4. Code snippets, payloads, or specific syntax that could be used
-            5. Step-by-step instructions that are specific to the task
-            
-            Return a JSON object with the following structure:
-            {{
-              "is_relevant": false,  // Default to false unless proven otherwise
-              "reason": "Detailed explanation of why the answer is or is not relevant"
-            }}
-            
-            Only return the JSON object, nothing else.
-            """)
+        self.answer_evaluation_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_answer_evaluation)
         
         self.answer_evaluation_chain = (
             self.answer_evaluation_prompt
@@ -325,16 +238,16 @@ class QuestionExtractor:
                     task_desc = task_info.get("task", f"Task {i+1}")
                     results.append({
                         "task": task_desc,
-                        "question": f"What techniques are needed for this CTF task?",
-                        "evaluation": "Fallback question due to processing error"
+                        "question": self.config.prompts.extract_w_task_q,
+                        "evaluation": self.config.prompts.extract_w_task_e
                     })
             
             if not results:
                 # Fallback if no questions were generated
                 results.append({
-                    "task": "Understand the CTF challenge",
-                    "question": "What is the main vulnerability or technique needed for this CTF challenge?",
-                    "evaluation": "Fallback question when no tasks could be processed"
+                    "task": self.config.prompts.extract_wo_task_t,
+                    "question": self.config.prompts.extract_wo_task_q,
+                    "evaluation": self.config.prompts.extract_wo_task_e
                 })
             
             return results
@@ -343,9 +256,9 @@ class QuestionExtractor:
             self._log(f"Error in process_context: {str(e)}", LogLevel.ERROR)
             # Return a fallback result
             return [{
-                "task": "Understand the CTF challenge",
-                "question": "What is the main vulnerability or technique needed for this CTF challenge?",
-                "evaluation": "Fallback due to error in processing"
+                "task": self.config.prompts.extract_wo_task_t,
+                "question": self.config.prompts.extract_wo_task_q,
+                "evaluation": self.config.prompts.extract_wo_task_e
             }]
     
     def evaluate_answer(self, task: str, question: str, answer: str) -> Dict[str, Any]:

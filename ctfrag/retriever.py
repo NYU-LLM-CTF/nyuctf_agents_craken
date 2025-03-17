@@ -47,13 +47,13 @@ class RetrieverManager:
 
     def rag_generate(self, query, collection, mode="graph", template=None):
         if mode == "graph":
-            answer = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.rag_config.template_main)
+            answer = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.prompts.rag_main)
             # answer = results["answer"]
         elif mode == "self_rag":
-            results = self.retrieval_alg.self_rag_retrieve(query, collection, template if template else self.config.rag_config.template_main)
+            results = self.retrieval_alg.self_rag_retrieve(query, collection, template if template else self.config.prompts.rag_main)
             answer = results["answer"]
         else:
-            answer = self.retrieval_alg.chain_retrieve(query, collection, template if template else self.config.rag_config.template_main)
+            answer = self.retrieval_alg.chain_retrieve(query, collection, template if template else self.config.prompts.rag_main)
         self.history.append({
             "query": query,
             "collection": collection,

@@ -6,6 +6,7 @@ from langchain.callbacks import StdOutCallbackHandler
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_community.callbacks import get_openai_callback
 from readability import Document
+from ctfrag.config import RetrieverConfig
 import urllib.parse
 import re
 import json
@@ -46,18 +47,6 @@ class SearchCostTracker:
             "total_cost": round(self.google_search_cost + self.llm_cost, 4)
         }
 
-SEARCH_TEMPLATE: str = """
-    Your task is to extract key information from the user's input.
-    Your output format must follow:
-    Key information: The key information you extracted from the user's input for search engine searches
-    Output in this format. Do not add any additional content, you must strictly follow the standard format
-    For example:
-    User input: How to solve a reverse CTF Challenge?
-    Key information: CTF, reverse
-    
-    User input: {query}
-    """
-
 # Load environment variables from api_keys file
 def load_api_keys():
     """Load API keys from config file"""
@@ -81,8 +70,9 @@ class WebSearchResult:
 class WebSearch:
     """Improved web search implementation using LangChain with engine selection"""
     
-    def __init__(self, llm, verbose: bool = False, search_engine: str = "hybrid"):
+    def __init__(self, llm, verbose: bool = False, search_engine: str = "hybrid", config:RetrieverConfig=None):
         self.verbose = verbose
+        self.config = config
         self.cost_tracker = SearchCostTracker()
         # Set the search engine option (google, duckduckgo, or hybrid)
         self.search_engine = search_engine.lower()
@@ -108,7 +98,7 @@ class WebSearch:
         if self.search_engine in ["duckduckgo", "hybrid"]:
             self.duckduckgo_search = DuckDuckGoSearchResults(output_format="list")
             
-        self.prompt = PromptTemplate(input_variables=["query"], template=SEARCH_TEMPLATE)
+        self.prompt = PromptTemplate(input_variables=["query"], template=self.config.prompts.search_main)
         self.keyword_chain = self.prompt | self.llm
         
         # Configuration parameters
@@ -286,11 +276,7 @@ class WebSearch:
         # Prepare prompt for filtering relevant links
         filter_prompt = PromptTemplate(
             input_variables=["context", "query"],
-            template="""Known information: '{context}'
-            Based on the above information, please filter out which information is closely related to the user input: '{query}'
-            Please strictly output in the following format————
-            Links: [one or more pieces of links you consider most closely related to the user input, separated by commas] or []
-            """
+            template=self.config.prompts.search_filtering
         )
         
         # Create and invoke chain to filter links with callback if verbose
@@ -337,8 +323,7 @@ class WebSearch:
         # Create summary prompt
         summary_prompt = PromptTemplate(
             input_variables=["content", "query"],
-            template="""Known information: '{content}'
-            Please use '{query}' as the theme, comprehensively and thoroughly summarize the above known information, content unrelated to the theme can be ignored"""
+            template=self.config.prompts.search_summary
         )
         
         # Create and invoke summary chain with callback if verbose
@@ -366,12 +351,7 @@ class WebSearch:
         # Create evaluation prompt
         evaluation_prompt = PromptTemplate(
             input_variables=["content", "query"],
-            template="""Known information: '{content}'
-            Please determine whether the above information can serve as response content for '{query}', thereby meeting the user's intent.
-            If yes, please output 'yes' directly;
-            If no, please output 'no' directly.
-            And you need to follow the specified format for output, format———— "Conclusion: yes or no"
-            """
+            template=self.config.prompts.search_evaluation
         )
         
         # Create and invoke evaluation chain with callback if verbose

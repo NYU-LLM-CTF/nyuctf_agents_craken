@@ -32,9 +32,9 @@ retrieval:
       k: 20
       ef: 30
   template: 
-    rag_template: prompts/ragagent.yaml
-    search_template: prompts/search.yaml
-    extraction_template: prompts/extractor.yaml
+    rag: prompts/rag.yaml
+    search: prompts/search.yaml
+    extract: prompts/extract.yaml
   collection: "HFCTF"
 
 features:

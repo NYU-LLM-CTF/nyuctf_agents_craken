@@ -1,4 +1,5 @@
 import yaml
+from pathlib import Path
 from dataclasses import dataclass
 
 @dataclass
@@ -26,7 +27,11 @@ class RAGConfig:
     retriever_search: str
     retriever_params: dict
     collection: str
+    template_rag: str
+    template_search: str
+    template_extract: str
 
+@dataclass
 class PromptConfig:
     rag_main: str
     rag_multi: str
@@ -47,7 +52,7 @@ class PromptConfig:
     extract_answer_evaluation: str
     extract_w_task_q: str
     extract_w_task_e: str
-    extract_wo_task_task: str
+    extract_wo_task_t: str
     extract_wo_task_q: str
     extract_wo_task_e: str
 
@@ -77,6 +82,7 @@ Answer:
 
 class RetrieverConfig:
     def __init__(self, config_path):
+        self.config_path = Path(config_path)
         self.config_yaml = self._load_config(config_path)
         self.db_config = DatabaseConfig(
             storage=self.config_yaml.get("database", {}).get("storage", "milvus"),
@@ -103,16 +109,10 @@ class RetrieverConfig:
             retriever_type=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("type", "similarity_search"),
             retriever_search=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("search_type", "similarity"),
             retriever_params=self.config_yaml.get("retrieval", {}).get("retriever", {}).get("params", {"k": 20, "ef": 30}),
-            template_main=self.config_yaml.get("retrieval", {}).get("template", {}).get("rag_main", DEFAULT_TEMPATE),
-            template_multi=self.config_yaml.get("retrieval", {}).get("template", {}).get("multi_query"),
-            template_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("decompose_query"),
-            template_answer_decompose=self.config_yaml.get("retrieval", {}).get("template", {}).get("answer_decompose_query"),
-            template_step_back=self.config_yaml.get("retrieval", {}).get("template", {}).get("step_back"),
-            template_retrieval_grading=self.config_yaml.get("retrieval", {}).get("template", {}).get("retrieval_grading"),
-            template_hallucination_grading=self.config_yaml.get("retrieval", {}).get("template", {}).get("hallucination_grading"),
-            template_answer_grading=self.config_yaml.get("retrieval", {}).get("template", {}).get("answer_grading"),
-            template_question_rewriting=self.config_yaml.get("retrieval", {}).get("template", {}).get("question_rewriting"),
-            collection=self.config_yaml.get("retrieval", {}).get("collection", None)
+            collection=self.config_yaml.get("retrieval", {}).get("collection", None),
+            template_rag=self.config_yaml.get("retrieval", {}).get("template", {}).get("rag", "prompts/rag.yaml"),
+            template_search=self.config_yaml.get("retrieval", {}).get("template", {}).get("search", "prompts/search.yaml"),
+            template_extract=self.config_yaml.get("retrieval", {}).get("template", {}).get("extract", "prompts/extract.yaml"),
         )
         self.feature_config = FeatureConfig(
             rerank=self.config_yaml.get("features", {}).get("rerank", False),
@@ -126,9 +126,43 @@ class RetrieverConfig:
             hallucination_grading=self.config_yaml.get("features", {}).get("hallucination_grading", False),
             answer_grading=self.config_yaml.get("features", {}).get("answer_grading", False),
             question_rewriting=self.config_yaml.get("features", {}).get("question_rewriting", False)
-            
         )
+        self.load_prompts()
     
+    def load_prompts(self):
+        config_d = self.config_path.parent
+        rag_prompts = config_d / self.rag_config.template_rag
+        search_prompts = config_d / self.rag_config.template_search
+        extract_prompts = config_d / self.rag_config.template_extract
+        rag_prompts_cfg = self._load_config(rag_prompts)
+        search_prompts_cfg = self._load_config(search_prompts)
+        extract_prompts_cfg = self._load_config(extract_prompts)
+
+        self.prompts = PromptConfig(
+            rag_main=rag_prompts_cfg.get("rag", DEFAULT_TEMPATE),
+            rag_multi=rag_prompts_cfg.get("multi_query", ""),
+            rag_decompose=rag_prompts_cfg.get("decompose_query", ""),
+            rag_answer_decompose=rag_prompts_cfg.get("answer_decompose_query", ""),
+            rag_step_back=rag_prompts_cfg.get("step_back", ""),
+            rag_retrieval_grading=rag_prompts_cfg.get("retrieval_grading", ""),
+            rag_hallucination_grading=rag_prompts_cfg.get("hallucination_grading", ""),
+            rag_answer_grading=rag_prompts_cfg.get("answer_grading", ""),
+            rag_question_rewriting=rag_prompts_cfg.get("question_rewriting", ""),
+            search_main=search_prompts_cfg.get("search", ""),
+            search_filtering=search_prompts_cfg.get("filtering", ""),
+            search_summary=search_prompts_cfg.get("summary", ""),
+            search_evaluation=search_prompts_cfg.get("evaluation", ""),
+            extract_context_to_task=extract_prompts_cfg.get("context_to_task", ""),
+            extract_task_to_question=extract_prompts_cfg.get("task_to_question", ""),
+            extract_question_evaluation=extract_prompts_cfg.get("question_evaluation", ""),
+            extract_answer_evaluation=extract_prompts_cfg.get("answer_evaluation", ""),
+            extract_w_task_q=extract_prompts_cfg.get("fallback_with_task", {}).get("question", ""),
+            extract_w_task_e=extract_prompts_cfg.get("fallback_with_task", {}).get("evaluation", ""),
+            extract_wo_task_t=extract_prompts_cfg.get("fallback_no_task", {}).get("task", ""),
+            extract_wo_task_q=extract_prompts_cfg.get("fallback_no_task", {}).get("question", ""),
+            extract_wo_task_e=extract_prompts_cfg.get("fallback_no_task", {}).get("evaluation", "")
+        )
+
     def _load_config(self, path):
         with open(path, 'r') as file:
             config = yaml.safe_load(file)
