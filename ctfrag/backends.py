@@ -15,21 +15,6 @@ EMBEDDINGS = {
     "together": TogetherEmbeddings
 }
 
-NAME_ALIAS = {
-    'OPENAI': 'OPENAI_API_KEY',
-    'ANTHROPIC': 'ANTHROPIC_API_KEY',
-    'GEMINI': 'GEMINI_API_KEY',
-    'TOGETHER': 'TOGETHER_API_KEY',
-    'GOOGLE_SEARCH': 'GOOGLE_API_KEY',
-    'GOOGLE_CSE': 'GOOGLE_CSE_ID'
-}
-
-class APIKeysLangChain(dict):
-    """Loads and holds API keys"""
-    def __init__(self, keys: dict):
-        for k, v in keys.items():
-            os.environ[NAME_ALIAS[k]] = v
-
 '''
 Example config
 {
@@ -201,11 +186,3 @@ class LLMs:
 
     def __call__(self):
         return self.llm()
-    
-# if __name__ == "__main__":
-#     with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
-#         for line in f:
-#             key, value = line.strip().split("=")
-#             os.environ[key] = value
-#     a = LLMs("gemini-1.5-flash", config={"temperature": 0})
-#     print(type(a()))

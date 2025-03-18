@@ -20,7 +20,7 @@ class MilvusDB(BaseVectorDB):
     @override
     def insert_document(self, documents: List[Document], collection: str):
         if not self.use_server:
-            db = Milvus.from_documents(documents, embedding=self.embeddings, connection_args={"uri": str(self.url)}, collection_name=collection)
+            db = Milvus.from_documents(documents, embedding=self.embeddings, connection_args={"uri": str(self.url)}, collection_name=collection, index_params={"index_type": "FLAT", "metric_type": "L2"})
         else:
             db = Milvus.from_documents(documents, embedding=self.embeddings, connection_args={"host": self.host, "port": self.port}, collection_name=collection)
     

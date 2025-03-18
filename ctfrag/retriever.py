@@ -6,7 +6,9 @@ from ctfrag.config import RetrieverConfig
 from ctfrag.extractor import QuestionExtractor
 from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
-# os.environ["PYTHONWARNINGS"] = "ignore"
+from ctfrag.utils import load_api_keys
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
 # warnings.simplefilter("ignore", category=DeprecationWarning)
 # warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 # warnings.filterwarnings("ignore")
@@ -63,12 +65,13 @@ class RetrieverManager:
 
     
 if __name__ == "__main__":
+    load_api_keys(key_cfg=Path(__file__).resolve().parent.parent.parent / "keys.cfg")
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", default=Path(__file__).resolve().parent.parent / "config/rag_config.yaml", type=str, help="config path")
     args = parser.parse_args()
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
-    # response = agent.summarize_context(info=TEST_CONTEXT)
-    # print(response)
+    # # response = agent.summarize_context(info=TEST_CONTEXT)
+    # # print(response)
     answer = agent.rag_generate("how to reverse", mode="chain", collection="writeups")
     print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")

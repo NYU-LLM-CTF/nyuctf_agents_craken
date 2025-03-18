@@ -4,6 +4,7 @@ from ctfrag.database import RAGDatabase
 from ctfrag.db_backend.milvus import MilvusDB
 from ctfrag.db_backend.weaviate import WeaviateDB
 from ctfrag.db_backend.neo4j import Neo4jDB
+from ctfrag.utils import load_api_keys
 from ctfrag.backends import EmbeddingModel
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -11,6 +12,7 @@ from ctfrag.backends import EmbeddingModel
 parser = argparse.ArgumentParser("Import RAG data")
 parser.add_argument("--database", default="milvus", choices=["milvus", "weaviate", "neo4j"], help="Vector or graph database")
 parser.add_argument("-i", "--path", required=True, help="Data path")
+parser.add_argument("-k", "--api-keys", default="../keys.cfg", help="API Keys file")
 parser.add_argument("-c", "--collection", required=True, help="Collection to store in vector db")
 parser.add_argument("-e", "--embeddings", choices=["openai", "together", "huggingface"], default="openai", help="Embeddings backend to use")
 parser.add_argument("--embeddings-model", default=None, help="Embedding models to use")
@@ -19,6 +21,8 @@ parser.add_argument("--data-col", default="value", help="Instance data column, u
 parser.add_argument("--chunk-size", default=2048, help="Chunk size of indexing")
 parser.add_argument("--overlap", default=100, help="Overlap of indexing")
 args = parser.parse_args()
+
+load_api_keys(key_cfg=args.api_keys)
 
 embeddings = EmbeddingModel(args.embeddings, args.embeddings_model)
 
