@@ -45,81 +45,81 @@ def replace_image_references(writeup_text, image_texts):
     updated_text = re.sub(image_pattern, replace_match, writeup_text)
     return updated_text
 
-def process_writeup_file(file_path, base_folder, processed_folder):
-    """Process a single writeup file and save the processed file into a centralized folder."""
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            writeup_text = f.read()
+# def process_writeup_file(file_path, base_folder, processed_folder):
+#     """Process a single writeup file and save the processed file into a centralized folder."""
+#     try:
+#         with open(file_path, "r", encoding="utf-8") as f:
+#             writeup_text = f.read()
 
-        image_pattern = r"!\[.*?\]\((.*?)\)"
-        image_paths = re.findall(image_pattern, writeup_text)
+#         image_pattern = r"!\[.*?\]\((.*?)\)"
+#         image_paths = re.findall(image_pattern, writeup_text)
 
-        folder_path = os.path.dirname(file_path)
-        full_image_paths = [os.path.join(folder_path, img) for img in image_paths]
+#         folder_path = os.path.dirname(file_path)
+#         full_image_paths = [os.path.join(folder_path, img) for img in image_paths]
 
-        extracted_texts = extract_text_from_images(full_image_paths)
+#         extracted_texts = extract_text_from_images(full_image_paths)
 
-        # Map from full path back to relative path as it appears in the markdown
-        image_texts = {}
-        for rel_path, full_path in zip(image_paths, full_image_paths):
-            image_texts[rel_path] = extracted_texts.get(full_path, "[Image not found]")
+#         # Map from full path back to relative path as it appears in the markdown
+#         image_texts = {}
+#         for rel_path, full_path in zip(image_paths, full_image_paths):
+#             image_texts[rel_path] = extracted_texts.get(full_path, "[Image not found]")
 
-        processed_writeup = replace_image_references(writeup_text, image_texts)
+#         processed_writeup = replace_image_references(writeup_text, image_texts)
 
-        # Derive year, competition, and challenge from file_path
-        # file_path structure: ./ctf-writeup/<year>/<competition>/<challenge>/writeup.md
-        rel_path = os.path.relpath(file_path, base_folder)
-        parts = rel_path.split(os.sep)
-        # parts should look like: [year, competition, challenge, writeup.md]
-        if len(parts) >= 4:
-            year = parts[0]
-            competition = parts[1]
-            challenge = parts[2]
-        else:
-            # If the structure differs, handle gracefully
-            year = "unknown_year"
-            competition = "unknown_competition"
-            challenge = os.path.splitext(parts[-1])[0]  # filename without extension
+#         # Derive year, competition, and challenge from file_path
+#         # file_path structure: ./ctf-writeup/<year>/<competition>/<challenge>/writeup.md
+#         rel_path = os.path.relpath(file_path, base_folder)
+#         parts = rel_path.split(os.sep)
+#         # parts should look like: [year, competition, challenge, writeup.md]
+#         if len(parts) >= 4:
+#             year = parts[0]
+#             competition = parts[1]
+#             challenge = parts[2]
+#         else:
+#             # If the structure differs, handle gracefully
+#             year = "unknown_year"
+#             competition = "unknown_competition"
+#             challenge = os.path.splitext(parts[-1])[0]  # filename without extension
 
-        # Construct the output filename
-        output_filename = f"{year}_{competition}_{challenge}_processed.md"
-        output_path = os.path.join(processed_folder, output_filename)
+#         # Construct the output filename
+#         output_filename = f"{year}_{competition}_{challenge}_processed.md"
+#         output_path = os.path.join(processed_folder, output_filename)
 
-        # Ensure the processed folder exists
-        os.makedirs(processed_folder, exist_ok=True)
+#         # Ensure the processed folder exists
+#         os.makedirs(processed_folder, exist_ok=True)
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(processed_writeup)
-        print(f"Processed writeup saved to: {output_path}")
+#         with open(output_path, "w", encoding="utf-8") as f:
+#             f.write(processed_writeup)
+#         print(f"Processed writeup saved to: {output_path}")
 
-    except Exception as e:
-        print(f"Error processing file {file_path}: {e}")
+#     except Exception as e:
+#         print(f"Error processing file {file_path}: {e}")
 
-def process_challenges_in_category(category_folder_path, base_folder, processed_folder):
-    """Process challenge folders within a category."""
-    for challenge_folder in os.listdir(category_folder_path):
-        challenge_path = os.path.join(category_folder_path, challenge_folder)
-        if os.path.isdir(challenge_path):
-            for file in os.listdir(challenge_path):
-                if file.endswith(".md"):
-                    writeup_file = os.path.join(challenge_path, file)
-                    print(f"Processing writeup: {writeup_file}")
-                    process_writeup_file(writeup_file, base_folder, processed_folder)
+# def process_challenges_in_category(category_folder_path, base_folder, processed_folder):
+#     """Process challenge folders within a category."""
+#     for challenge_folder in os.listdir(category_folder_path):
+#         challenge_path = os.path.join(category_folder_path, challenge_folder)
+#         if os.path.isdir(challenge_path):
+#             for file in os.listdir(challenge_path):
+#                 if file.endswith(".md"):
+#                     writeup_file = os.path.join(challenge_path, file)
+#                     print(f"Processing writeup: {writeup_file}")
+#                     process_writeup_file(writeup_file, base_folder, processed_folder)
 
-def process_all_year_folders(base_folder, processed_folder):
-    """Process all year folders and their nested category structure."""
-    for year_folder in sorted(os.listdir(base_folder)):
-        year_folder_path = os.path.join(base_folder, year_folder)
-        if os.path.isdir(year_folder_path):
-            print(f"Processing year folder: {year_folder}")
-            for category in os.listdir(year_folder_path):
-                category_folder_path = os.path.join(year_folder_path, category)
-                if os.path.isdir(category_folder_path):
-                    print(f"  Processing category folder: {category}")
-                    process_challenges_in_category(category_folder_path, base_folder, processed_folder)
+# def process_all_year_folders(base_folder, processed_folder):
+#     """Process all year folders and their nested category structure."""
+#     for year_folder in sorted(os.listdir(base_folder)):
+#         year_folder_path = os.path.join(base_folder, year_folder)
+#         if os.path.isdir(year_folder_path):
+#             print(f"Processing year folder: {year_folder}")
+#             for category in os.listdir(year_folder_path):
+#                 category_folder_path = os.path.join(year_folder_path, category)
+#                 if os.path.isdir(category_folder_path):
+#                     print(f"  Processing category folder: {category}")
+#                     process_challenges_in_category(category_folder_path, base_folder, processed_folder)
 
 
-def process_writeups(file_path, base_folder, processed_folder):
+def process_writeups(file_path):
     """Process a single writeup file and save the processed file into a centralized folder."""
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -171,7 +171,7 @@ def process_file(base_folder, processed_folder):
                 # writeup_file = os.path.join(file_path, file)
                 writeup_file = file_path
                 print(f"Processing writeup: {writeup_file}")
-                content = process_writeups(writeup_file, base_folder, processed_folder)
+                content = process_writeups(writeup_file)
 
                 if content!="":
 
