@@ -113,7 +113,7 @@ class RAGAgent:
         self.wrap.prompt = template_str
         self.wrap.template = ChatPromptTemplate.from_template(self.wrap.prompt)
     
-    # grade retrieved documents for relevent
+    # Self_rag : init for grader of retrieved documents for relevent
     def _init_retrieval_grader(self):
         grade_prompt = ChatPromptTemplate.from_messages(
             [
@@ -124,6 +124,7 @@ class RAGAgent:
         structured_llm_grader = self.llm.with_structured_output(GradeDocuments)
         self.retrieval_grader = grade_prompt | structured_llm_grader
 
+    # Self_rag/retrieval_grading : grader of retrieved documents for relevent
     def grade_retrieval(self, question, documents):
         relevant_docs = []
         grading_result = self.retrieval_grader.invoke({"question": question, "document": documents})
@@ -131,7 +132,7 @@ class RAGAgent:
             relevant_docs.append(documents)
         return relevant_docs 
     
-    # grade generated output for hallucination
+    # Self_rag : init for grader generated output for hallucination
     def _init_hallucination_grader(self):
         hallucination_prompt = ChatPromptTemplate.from_messages(
             [
@@ -141,12 +142,13 @@ class RAGAgent:
         )
         self.hallucination_grader = hallucination_prompt | self.llm.with_structured_output(GradeHallucinations)
 
+    # Hallucination_grading : grader generated output for hallucination
     def grade_hallucination(self, documents, generation):
         docs_content = "\n\n".join(doc.page_content for doc in documents)
         grading_result = self.hallucination_grader.invoke({"documents": docs_content, "generation": generation})
         return grading_result.binary_score.lower() == "yes"
 
-    # grade generated output for answered question or not
+    # Self_rag : init for grader generated output for answered question or not
     def _init_answer_grader(self):
         answer_prompt = ChatPromptTemplate.from_messages(
             [
@@ -156,11 +158,12 @@ class RAGAgent:
         )
         self.answer_grader = answer_prompt | self.llm.with_structured_output(GradeAnswer)
 
+    # Answer_grading : init for grader generated output for answered question or not
     def grade_answer(self, question, generation):
         grading_result = self.answer_grader.invoke({"question": question, "generation": generation})
         return grading_result.binary_score.lower() == "yes"
     
-    # rewrite question
+    # Self_rag : init for rewriting question
     def _init_question_rewriter(self):
         re_write_prompt = ChatPromptTemplate.from_messages(
             [
@@ -170,11 +173,12 @@ class RAGAgent:
         )
         self.question_rewriter = re_write_prompt | self.llm | StrOutputParser()
 
+    # Self_rag/question_rewriting : rewriting question
     def rewrite_question(self, question):
         rewritten_question = self.question_rewriter.invoke({"question": question})
         return rewritten_question
     
-    # generate five different versions of the given user question
+    # Multi_query : generate five different versions of the given user question
     def _multi_query(self):
         prompt_perspectives = ChatPromptTemplate.from_template(template=self.config.prompts.rag_multi)
         
@@ -186,13 +190,13 @@ class RAGAgent:
         )
         return generate_queries
 
-    # only get the unique docs
+    # Multi_query : only get the unique docs
     def get_unique_union(self, documents):
         flattened_docs = [dumps(doc) for sublist in documents for doc in sublist]
         unique_docs = list(set(flattened_docs)) 
         return [loads(doc) for doc in unique_docs]
 
-    # rerank all documents
+    # Rag_fusion : rerank all documents
     def _reciprocal_rank_fusion(self, results: list[list], k=60):
         fused_scores = {}
         for docs in results:
@@ -215,7 +219,7 @@ class RAGAgent:
 
         return final_results  
 
-    # generates multiple sub-questions related to an input question
+    # Decomposition : generates multiple sub-questions related to an input question
     def _decompose_question(self, question: str):
         prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.prompts.rag_decompose)
         generate_queries_decomposition = (
@@ -227,12 +231,13 @@ class RAGAgent:
         sub_questions = generate_queries_decomposition.invoke({"question": question})
         return sub_questions
 
+    # Decomposition : format multiple sub-questions answers pairss
     def format_qa_pair(self, question, answer):
         formatted_string = ""
         formatted_string += f"Question: {question}\nAnswer: {answer}\n\n"
         return formatted_string.strip()
     
-    # answer multiple sub-questions related to an input question 
+    # Decomposition : answer multiple sub-questions related to an input question 
     def _answer_sub_questions(self, sub_questions):
         decomposition_prompt = ChatPromptTemplate.from_template(template=self.config.prompts.rag_answer_decompose)
 
@@ -257,7 +262,7 @@ class RAGAgent:
 
         return answer, {"q_a_pairs": "\n---\n".join(q_a_pairs_list)} 
 
-    # generate a step back question related to an input question
+    # Step_back : generate a step back question related to an input question
     def _generate_step_back_query(self, question: str):
 
         examples = [{"input": self.config.prompts.rag_step_back_inputs[i], "output": self.config.prompts.rag_step_back_outputs[i]} 
@@ -287,6 +292,7 @@ class RAGAgent:
         step_back_query = chain.invoke({"question": question})
         return step_back_query
     
+    # Step_back : retrieve based on step back question
     def _retrieve_step_back_context(self, question: str, step_back_query: str):
         if self.wrap.retriever is None:
             self._create_retriever()
@@ -439,6 +445,7 @@ class RAGAgent:
             result["answer"] = "The workflow could not generate a valid response."
         return result
 
+    # Self_rag : retrieve node
     def retrieve_node(self, state: State):
         state["recursion_depth"] += 1
         print("---RETRIEVE NODE---")
@@ -452,7 +459,8 @@ class RAGAgent:
         result = rag_chain.invoke(state["question"])
         state["context"] = result
         return state
-
+    
+    # Self_rag : generate node
     def generate_node(self, state: State):
         state["recursion_depth"] += 1
 
@@ -461,6 +469,7 @@ class RAGAgent:
         state["answer"] = result["answer"]
         return state
 
+    # Self_rag : grade retrieved documents node
     def grade_documents_node(self, state: State):
         print("---GRADE DOCUMENTS NODE---")
         question = state["question"]
@@ -474,6 +483,7 @@ class RAGAgent:
         state["context"] = filtered_docs
         return state
 
+    # Self_rag : transform query node
     def transform_query_node(self, state: State):
         state["recursion_depth"] += 1
         print("---TRANSFORM QUERY NODE---")
@@ -481,7 +491,8 @@ class RAGAgent:
         rewritten_question = self.rewrite_question(question)
         state["question"] = rewritten_question
         return state
-
+    
+    # Self_rag : decide to generate or not edge
     def decide_to_generate(self, state: State):
         print("---ASSESS GRADED DOCUMENTS---")
         documents = state["context"]
@@ -495,6 +506,7 @@ class RAGAgent:
             print("---DECISION: GENERATE---")
             return "generate"
     
+    # Self_rag : check for hallucination and whether answers the question edge
     def grade_generation_v_documents_and_question(self, state: State):
         print("---CHECK HALLUCINATIONS---")
         question = state["question"]
@@ -527,6 +539,7 @@ class RAGAgent:
                 return "end"
             return "not supported"
 
+    # Self_rag : build self_rag graph
     def build_rag_graph(self):
         workflow = StateGraph(State)  
 
@@ -567,6 +580,7 @@ class RAGAgent:
 
         return compiled_graph
 
+    # Self_rag : run self_rag workflow
     def run_rag_workflow_streamed(self, query):
         print("---STARTING STREAMED GRAPH-BASED RAG WORKFLOW---")
         app = self.build_rag_graph()
