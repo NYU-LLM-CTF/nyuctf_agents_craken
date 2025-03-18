@@ -38,6 +38,9 @@ retrieval:
   collection: "HFCTF"
 
 features:
+  hallucination_grading: False
+  answer_grading: False
+  retrieval_grading: False
   search_params: False
   rerank: False
   compressor: False
@@ -45,7 +48,4 @@ features:
   rag_fusion: False
   decomposition: False
   step_back: False
-  retrieval_grading: False
-  hallucination_grading: False
-  answer_grading: False
   question_rewriting: False

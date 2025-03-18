@@ -8,15 +8,10 @@ from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
 from ctfrag.utils import load_api_keys
 import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
+warnings.filterwarnings("ignore")
 # warnings.simplefilter("ignore", category=DeprecationWarning)
 # warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 # warnings.filterwarnings("ignore")
-
-TEST_CONTEXT = """
-It seems we don't have permission to install packages. 
-Let's try using Python to interpret the Brainfuck code. I'll create a simple Python script to do this:
-"""
 
 with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
     for line in f:
@@ -47,15 +42,13 @@ class RetrieverManager:
         evaluation = self.extractor.evaluate_answer(task=task, question=question, answer=answer)
         return evaluation, self.extractor.get_evaluate_cost()
 
-    def rag_generate(self, query, collection, mode="graph", template=None):
+    def rag_generate(self, query, collection, mode="chain"):
         if mode == "graph":
-            answer = self.retrieval_alg.graph_retrieve(query, collection, template if template else self.config.prompts.rag_main)
-            # answer = results["answer"]
+            answer = self.retrieval_alg.do_graphrag(query)
         elif mode == "self_rag":
-            results = self.retrieval_alg.self_rag_retrieve(query, collection, template if template else self.config.prompts.rag_main)
-            answer = results["answer"]
+            answer = self.retrieval_alg.do_selfrag(query, collection)
         else:
-            answer = self.retrieval_alg.chain_retrieve(query, collection, template if template else self.config.prompts.rag_main)
+            answer = self.retrieval_alg.do_rag(query, collection)
         self.history.append({
             "query": query,
             "collection": collection,
@@ -72,7 +65,7 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    answer = agent.rag_generate("how to reverse", mode="chain", collection="writeups")
+    answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writups")
     print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
     # # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
