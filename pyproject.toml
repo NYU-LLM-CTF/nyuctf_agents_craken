@@ -32,7 +32,6 @@ dependencies = [
   "langchain-huggingface",
   "langchain-openai",
   "langchain-anthropic",
-  "langchain-weaviate",
   "ragatouille",
   "rank-llm",
   "weaviate-client",
@@ -55,7 +54,8 @@ dependencies = [
   "neo4j",
   "langchain_neo4j",
   "langchain-together",
-  "langchain-google-genai"
+  "langchain-google-genai",
+  "colorama"
 ]
 
 [tool.hatch.build.targets.wheel]

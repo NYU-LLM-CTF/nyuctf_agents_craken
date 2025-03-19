@@ -1,6 +1,5 @@
 from ctfrag.database import RAGDatabase
 from ctfrag.db_backend.milvus import MilvusDB
-from ctfrag.db_backend.weaviate import WeaviateDB
 from ctfrag.db_backend.neo4j import Neo4jDB
 from ctfrag.config import RetrieverConfig
 from ctfrag.algorithms.base import RetrieverWrap
@@ -23,8 +22,6 @@ class RAGAgent:
     def _setup_db(self, db_storage):
         if db_storage == "milvus":
             return MilvusDB(embeddings=self.embeddings)
-        elif db_storage == "weaviate":
-            return WeaviateDB()
         elif db_storage == "neo4j":
             return Neo4jDB(embeddings=self.embeddings)
         else:

@@ -15,12 +15,12 @@ python -m ctfrag --database {dataset path} --collection {collection name}
 ## TODO List
 ### Agent
 - [x] Complete WebSearch Agent implementation
-- [ ] Complete Self-RAG implementation (High Priority)
-- [ ] Refactor RAG Agent
+- [x] Complete Self-RAG implementation (High Priority)
+- [x] Refactor RAG Agent
+- [ ] Refactor Graph-RAG
 ### Integration
 - [x] Integrate RAG Agent to D-CIPHER
-- [ ] Add integration to tool use
 - [ ] Enhance integration (High Priority)
 ### Database
-- [ ] Extend writeup database to 1000 writeups (High Priority)
-- [ ] Other collections, code, commonsense, payload etc. (High Priority)
+- [x] Extend writeup database to 1000 writeups (High Priority)
+- [x] Other collections, code, commonsense, payload etc. (High Priority)
