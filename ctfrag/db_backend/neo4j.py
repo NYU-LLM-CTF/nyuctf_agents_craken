@@ -87,3 +87,6 @@ class Neo4jDB(BaseVectorDB):
         self.driver.close()
         print("✅ Neo4j connection closed.")
 
+    @override
+    def view_samples(self, collection, limit):
+        pass
