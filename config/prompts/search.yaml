@@ -15,6 +15,8 @@ filtering: |
 summary: |
   Known information: '{content}'
   Please use '{query}' as the theme, comprehensively and thoroughly summarize the above known information, content unrelated to the theme can be ignored
+summary_long: |
+  Create a concise summary of the following text: {text}
 evaluation: |
   Known information: '{content}'
   Please determine whether the above information can serve as response content for '{query}', thereby meeting the user's intent.

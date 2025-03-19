@@ -34,7 +34,6 @@ class QuestionExtractor:
         return self.format_cost + self.evaluate_cost
         
     def _log(self, message: str, level: LogLevel = LogLevel.INFO) -> None:
-        """Log messages based on the configured log level."""
         if level.value <= self.log_level.value:
             if level == LogLevel.ERROR:
                 print(f"ERROR: {message}")
@@ -44,25 +43,19 @@ class QuestionExtractor:
                 print(f"DEBUG: {message}")
     
     def set_log_level(self, level: LogLevel) -> None:
-        """Set the logging level."""
         self.log_level = level
         self._log(f"Log level set to {level.name}", LogLevel.INFO)
     
     def _init_extractors(self):
-        # Step 1: Extract tasks from conversation context
-        self.context_to_tasks_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_context_to_task)
-        
-        # The chain just receives the context
+        self.context_to_tasks_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_context_to_task)        
         self.context_to_tasks_chain = (
             self.context_to_tasks_prompt
             | self.llm
             | StrOutputParser()
             | (lambda x: self._parse_json_tasks_safely(x))
         )
-        
-        # Generate questions for each task
+
         self.task_to_question_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_task_to_question)
-        
         self.task_to_question_chain = (
             self.task_to_question_prompt
             | self.llm
@@ -70,7 +63,6 @@ class QuestionExtractor:
         )
         
         self.question_evaluation_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_question_evaluation)
-        
         self.question_evaluation_chain = (
             self.question_evaluation_prompt
             | self.llm
@@ -78,9 +70,7 @@ class QuestionExtractor:
             | (lambda x: self._parse_json_safely_evaluation(x))
         )
         
-        # IMPROVED: Stricter answer evaluation prompt
         self.answer_evaluation_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_answer_evaluation)
-        
         self.answer_evaluation_chain = (
             self.answer_evaluation_prompt
             | self.llm
@@ -89,9 +79,8 @@ class QuestionExtractor:
         )
     
     def _parse_json_tasks_safely(self, json_str: str) -> List[Dict[str, str]]:
-        """Parse tasks JSON result safely."""
         try:
-            self._log(f"Parsing JSON: {json_str[:100]}...", LogLevel.DEBUG)  # Print first 100 chars for debugging
+            self._log(f"Parsing JSON: {json_str[:100]}...", LogLevel.DEBUG)
             result = json.loads(json_str)
             if isinstance(result, list):
                 tasks = []
@@ -99,52 +88,41 @@ class QuestionExtractor:
                     if isinstance(item, dict) and "task" in item:
                         tasks.append({"task": item["task"]})
                     elif isinstance(item, dict) and "subtask" in item:
-                        # Handle old format for compatibility
                         tasks.append({"task": item["subtask"]})
                     elif isinstance(item, str):
                         tasks.append({"task": item})
                     elif isinstance(item, dict):
-                        # Take the first value if neither "task" nor "subtask" key
                         if len(item) > 0:
                             first_key = next(iter(item))
                             tasks.append({"task": item[first_key]})
-                
                 return tasks
             else:
                 return [{"task": str(result)}]
         except json.JSONDecodeError as e:
             self._log(f"JSON decode error: {e}", LogLevel.ERROR)
-            # Try to extract content using regex if JSON parsing fails
             tasks = re.findall(r'"task":\s*"([^"]+)"', json_str)
             if tasks:
-                return [{"task": task} for task in tasks]
-            
-            # Also try looking for "subtask" for backward compatibility
+                return [{"task": task} for task in tasks]            
             subtasks = re.findall(r'"subtask":\s*"([^"]+)"', json_str)
             if subtasks:
-                return [{"task": subtask} for subtask in subtasks]
-            
-            # Just use the entire string as a single task
+                return [{"task": subtask} for subtask in subtasks]            
             return [{"task": json_str.strip()}]
     
     def _parse_json_safely_evaluation(self, json_str: str) -> Dict[str, Any]:
-        """Parse question evaluation JSON result safely."""
         try:
             result = json.loads(json_str)
             if isinstance(result, dict) and "is_suitable" in result:
                 return result
             else:
-                # Create a default response if JSON structure is incorrect
                 return {
-                    "is_suitable": True,  # Default to True for inclusivity
+                    "is_suitable": True,
                     "reason": "Failed to parse response properly, assuming suitable by default"
                 }
         except json.JSONDecodeError:
-            # Try to extract boolean value using regex if JSON parsing fails
             is_suitable_match = re.search(r'"is_suitable":\s*(true|false)', json_str, re.IGNORECASE)
             reason_match = re.search(r'"reason":\s*"([^"]+)"', json_str)
             
-            is_suitable = True  # Default to True for inclusivity
+            is_suitable = True
             if is_suitable_match:
                 is_suitable = is_suitable_match.group(1).lower() == "true"
                 
@@ -158,23 +136,20 @@ class QuestionExtractor:
             }
     
     def _parse_json_safely_answer_evaluation(self, json_str: str) -> Dict[str, Any]:
-        """Parse answer evaluation JSON result safely."""
         try:
             result = json.loads(json_str)
             if isinstance(result, dict) and "is_relevant" in result:
                 return result
             else:
-                # Default to False for stricter evaluation
                 return {
                     "is_relevant": False,
                     "reason": "Failed to parse response properly, assuming not relevant by default for stricter evaluation"
                 }
         except json.JSONDecodeError:
-            # Try to extract boolean value using regex if JSON parsing fails
             is_relevant_match = re.search(r'"is_relevant":\s*(true|false)', json_str, re.IGNORECASE)
             reason_match = re.search(r'"reason":\s*"([^"]+)"', json_str)
             
-            is_relevant = False  # Default to False for stricter evaluation
+            is_relevant = False
             if is_relevant_match:
                 is_relevant = is_relevant_match.group(1).lower() == "true"
                 
@@ -188,12 +163,8 @@ class QuestionExtractor:
             }
     
     def process_context(self, context: str) -> List[Dict[str, Any]]:
-        """
-        Main workflow function that processes a conversation context.
-        """
         self._log("Processing context...", LogLevel.INFO)
         try:
-            # Step 1: Extract tasks from context - only pass context
             with get_openai_callback() as cb:
                 tasks = self.context_to_tasks_chain.invoke({"context": context})
                 self.format_cost += cb.total_cost
@@ -205,18 +176,16 @@ class QuestionExtractor:
                     task = task_info.get("task", f"Task {i+1}")
                     self._log(f"Processing task: {task[:50]}...", LogLevel.INFO)
                     
-                    # Step 2: Generate a question for this task
                     with get_openai_callback() as cb:
                         question = self.task_to_question_chain.invoke({
                             "task": task,
                             "context": context
                         }).strip()
                         self.format_cost += cb.total_cost
-                    # Ensure question ends with a question mark
+                    
                     if not question.endswith("?"):
                         question += "?"
                     
-                    # Step 3: Evaluate question suitability
                     with get_openai_callback() as cb:
                         evaluation = self.question_evaluation_chain.invoke({
                             "task": task,
@@ -225,7 +194,6 @@ class QuestionExtractor:
                         })
                         self.format_cost += cb.total_cost
                     
-                    # Add to results if suitable (or by default)
                     if evaluation.get("is_suitable", True):
                         results.append({
                             "task": task,
@@ -234,7 +202,6 @@ class QuestionExtractor:
                         })
                 except Exception as e:
                     self._log(f"Error processing task {i+1}: {str(e)}", LogLevel.ERROR)
-                    # Add a fallback question for this task
                     task_desc = task_info.get("task", f"Task {i+1}")
                     results.append({
                         "task": task_desc,
@@ -243,7 +210,6 @@ class QuestionExtractor:
                     })
             
             if not results:
-                # Fallback if no questions were generated
                 results.append({
                     "task": self.config.prompts.extract_wo_task_t,
                     "question": self.config.prompts.extract_wo_task_q,
@@ -254,7 +220,6 @@ class QuestionExtractor:
             
         except Exception as e:
             self._log(f"Error in process_context: {str(e)}", LogLevel.ERROR)
-            # Return a fallback result
             return [{
                 "task": self.config.prompts.extract_wo_task_t,
                 "question": self.config.prompts.extract_wo_task_q,
@@ -262,9 +227,6 @@ class QuestionExtractor:
             }]
     
     def evaluate_answer(self, task: str, question: str, answer: str) -> Dict[str, Any]:
-        """
-        Evaluate if an answer has any relevant information for the question.
-        """
         try:
             self._log(f"Evaluating answer for question: {question[:50]}...", LogLevel.DEBUG)
             with get_openai_callback() as cb:
@@ -277,7 +239,6 @@ class QuestionExtractor:
             return result
         except Exception as e:
             self._log(f"Error in evaluate_answer: {str(e)}", LogLevel.ERROR)
-            # Return a fallback evaluation - default to False for stricter evaluation
             return {
                 "is_relevant": False,
                 "reason": "Error in evaluation, assuming not relevant by default for stricter evaluation"

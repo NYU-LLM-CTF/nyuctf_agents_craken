@@ -2,6 +2,7 @@ from ctfrag.algorithms.base import RAGAlgorithms, State, RetrieverWrap
 from ctfrag.database import RAGDatabase
 from ctfrag.config import RetrieverConfig
 from ctfrag.backends import LLMs
+from ctfrag.console import console
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
 from langgraph.graph import END, StateGraph
@@ -23,7 +24,7 @@ class SelfRAG(RAGAlgorithms):
     # Self_rag : retrieve node
     def retrieve_node(self, state: State):
         state["recursion_depth"] += 1
-        print("---RETRIEVE NODE---")
+        console.overlay_print("---RETRIEVE NODE---", 5)
         retriever = self.wrap.vector_store.as_retriever()
         rag_chain = (
             {"context": retriever,  "question": RunnablePassthrough()}
@@ -38,22 +39,21 @@ class SelfRAG(RAGAlgorithms):
     # Self_rag : generate node
     def generate_node(self, state: State):
         state["recursion_depth"] += 1
-
-        print("---GENERATE NODE---")
+        console.overlay_print("---GENERATE NODE---", 5)
         result = self.self_rag_generate(state)
         state["answer"] = result["answer"]
         return state
 
     # Self_rag : grade retrieved documents node
     def grade_documents_node(self, state: State):
-        print("---GRADE DOCUMENTS NODE---")
+        console.overlay_print("---GRADE DOCUMENTS NODE---", 5)
         question = state["question"]
         documents = state["context"]
         filtered_docs = self.grade_retrieval(question, documents)
         state["recursion_depth"] += 1
 
         if not filtered_docs:
-            print("---NO RELEVANT DOCUMENTS FOUND---")
+            console.overlay_print("---NO RELEVANT DOCUMENTS FOUND---", 5)
             
         state["context"] = filtered_docs
         return state
@@ -61,7 +61,7 @@ class SelfRAG(RAGAlgorithms):
     # Self_rag : transform query node
     def transform_query_node(self, state: State):
         state["recursion_depth"] += 1
-        print("---TRANSFORM QUERY NODE---")
+        console.overlay_print("---TRANSFORM QUERY NODE---", 5)
         question = state["question"]
         rewritten_question = self.rewrite_question(question)
         state["question"] = rewritten_question
@@ -69,21 +69,21 @@ class SelfRAG(RAGAlgorithms):
     
     # Self_rag : decide to generate or not edge
     def decide_to_generate(self, state: State):
-        print("---ASSESS GRADED DOCUMENTS---")
+        console.overlay_print("---ASSESS GRADED DOCUMENTS---", 5)
         documents = state["context"]
         if not documents:
-            print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---")
+            console.overlay_print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---", 5)
             if state["recursion_depth"] > self.MAX_RETRIES:
-                print("---MAX RECURSION DEPTH REACHED. Stopping workflow.---")
+                console.overlay_print("---MAX RECURSION DEPTH REACHED. Stopping workflow.---", 5)
                 return "end"     
             return "transform_query"
         else:
-            print("---DECISION: GENERATE---")
+            console.overlay_print("---DECISION: GENERATE---", 5)
             return "generate"
     
     # Self_rag : check for hallucination and whether answers the question edge
     def grade_generation_v_documents_and_question(self, state: State):
-        print("---CHECK HALLUCINATIONS---")
+        console.overlay_print("---CHECK HALLUCINATIONS---", 5)
         question = state["question"]
         documents = state["context"] 
         generation = state.get("answer", "")  
@@ -92,25 +92,25 @@ class SelfRAG(RAGAlgorithms):
         grade = score.binary_score
 
         if grade == "yes":
-            print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---")
-            print("---GRADE GENERATION vs QUESTION---")
+            console.overlay_print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---", 5)
+            console.overlay_print("---GRADE GENERATION vs QUESTION---", 5)
             score = self.answer_grader.invoke({"question": question, "generation": generation})
             grade = score.binary_score
             if grade == "yes":
-                print("---DECISION: GENERATION ADDRESSES QUESTION---")
+                console.overlay_print("---DECISION: GENERATION ADDRESSES QUESTION---", 5)
                 return "useful"
                 
             else:
-                print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---")
+                console.overlay_print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---", 5)
                 if state["recursion_depth"] > self.MAX_RETRIES:
-                    print("---MAX RETRIES REACHED. STOPPING RECURSION---")
+                    console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", 5)
                     return "end"
                 
                 return "not useful"
         else:
-            print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
+            console.overlay_print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---", 5)
             if state["recursion_depth"] > self.MAX_RETRIES:
-                print("---MAX RETRIES REACHED. STOPPING RECURSION---")
+                console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", 5)
                 return "end"
             return "not supported"
 
@@ -157,7 +157,7 @@ class SelfRAG(RAGAlgorithms):
 
     # Self_rag : run self_rag workflow
     def run_rag_workflow_streamed(self, query):
-        print("---STARTING STREAMED GRAPH-BASED RAG WORKFLOW---")
+        console.overlay_print("---STARTING STREAMED GRAPH-BASED RAG WORKFLOW---", 5)
         app = self.build_rag_graph()
         if app is None:
             raise RuntimeError("Graph compilation failed. Cannot proceed with RAG workflow.")
@@ -167,7 +167,7 @@ class SelfRAG(RAGAlgorithms):
         final_output = None
         for output in app.stream(inputs):
             for key, value in output.items():
-                print(f"Node '{key}':") 
+                console.overlay_print(f"Node '{key}':", 3) 
             final_output = value 
             
         if final_output and "answer" in final_output and final_output["answer"] != '':
