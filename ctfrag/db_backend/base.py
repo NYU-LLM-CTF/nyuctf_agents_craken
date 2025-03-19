@@ -30,3 +30,7 @@ class BaseVectorDB(ABC):
     @abstractmethod
     def close_db(self):
         pass
+
+    @abstractmethod
+    def view_samples(self, collection, limit):
+        pass

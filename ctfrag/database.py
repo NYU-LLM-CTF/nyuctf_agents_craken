@@ -686,6 +686,12 @@ class RAGDatabase:
     def get_db(self):
         return self.vector_db
     
+    def delete_db(self, collection):
+        self.vector_db.delete_collection(collection)
+    
+    def view_samples(self, collection, limit=10):
+        return self.vector_db.view_samples(collection, limit)
+    
     def _get_smart_splitter(self, path, args):
         chunk_size = args.get("chunk_size", 2048)
         chunk_overlap = args.get("overlap", 100)
