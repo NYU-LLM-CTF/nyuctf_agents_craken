@@ -5,7 +5,6 @@ import datasets
 import pandas as pd
 from tqdm import tqdm
 from langchain_community.document_loaders import TextLoader
-from langchain.text_splitter import CharacterTextSplitter
 import validators
 from langchain.docstore.document import Document as LangchainDocument
 from tqdm import tqdm
@@ -15,7 +14,8 @@ from langchain_text_splitters import (
     PythonCodeTextSplitter,
     RecursiveJsonSplitter,
     NLTKTextSplitter,
-    HTMLHeaderTextSplitter
+    HTMLHeaderTextSplitter,
+    TokenTextSplitter
 )
 import json
 import yaml
@@ -23,7 +23,7 @@ from unstructured.partition.pdf import partition_pdf
 from ctfrag.db_backend.base import BaseVectorDB
 import openai
 from langchain_core.documents import Document
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import time
 from tqdm import tqdm
@@ -108,7 +108,7 @@ class RAGDatabase:
         if args.get("auto_splitter", True):
             text_splitter = self._get_smart_splitter(path, args)
         else:
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            text_splitter = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         if os.path.getsize(path) < 1024:  
             #print(f"[SKIP] {path} is too small ({os.path.getsize(path)} bytes).")
             return
@@ -286,7 +286,13 @@ class RAGDatabase:
                         processed_counter.increment()
                 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    executor.map(process_file, files)
+                    future_to_file = {executor.submit(process_file, file): file for file in files}
+                    for future in as_completed(future_to_file):
+                        file = future_to_file[future]
+                        try:
+                            future.result()
+                        except Exception as e:
+                            print(f"Error processing {file}: {e}")
             else:    
                 def process_file(file):
                     thread_id = threading.get_ident()
@@ -300,10 +306,18 @@ class RAGDatabase:
                         processed_counter.increment()
                 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    executor.map(process_file, files)
+                    future_to_file = {executor.submit(process_file, file): file for file in files}
+                    for future in as_completed(future_to_file):
+                        file = future_to_file[future]
+                        try:
+                            future.result()
+                        except Exception as e:
+                            print(f"Error processing {file}: {e}")
             
             stop_event.set()
-            status_thread.join(timeout=1.0)
+            status_thread.join(timeout=2.0)
+            if status_thread.is_alive():
+                print("Warning: Status thread did not exit cleanly")
             
             stdscr.clear()
             height, width = stdscr.getmaxyx()
@@ -328,10 +342,19 @@ class RAGDatabase:
                                 break
                         except:
                             pass
-            
-            stdscr.addstr(height-1, 0, "Press any key to exit...")
+
+            stdscr.addstr(height-1, 0, "Auto-exiting in 3 seconds...")
             stdscr.refresh()
-            stdscr.getch()
+            stdscr.nodelay(True)
+            exit_time = time.time() + 3
+            while time.time() < exit_time:
+                if stdscr.getch() != -1:
+                    break
+                time.sleep(0.1)
+            
+            # stdscr.addstr(height-1, 0, "Press any key to exit...")
+            # stdscr.refresh()
+            # stdscr.getch()
         
         curses.wrapper(curses_display)
         
