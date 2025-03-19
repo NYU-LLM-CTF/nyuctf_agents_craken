@@ -7,16 +7,12 @@ from ctfrag.extractor import QuestionExtractor
 from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
 from ctfrag.utils import load_api_keys
+from ctfrag.console import console
 import warnings
 warnings.filterwarnings("ignore")
 # warnings.simplefilter("ignore", category=DeprecationWarning)
 # warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 # warnings.filterwarnings("ignore")
-
-with open(Path(__file__).resolve().parent.parent / "api_keys", "r") as f:
-    for line in f:
-        key, value = line.strip().split("=")
-        os.environ[key] = value
 
 class RetrieverManager:
     def __init__(self, api_key=None, config: RetrieverConfig={}) -> None:
@@ -26,7 +22,7 @@ class RetrieverManager:
         self.llm = LLMs(model=self.model, config={"temperature": self.config.agent_config.model_temperature})()
         self.embeddings = EmbeddingModel(self.config.db_config.embeddings)()
         self.retrieval_alg = RAGAgent(llm=self.llm, embeddings=self.embeddings, config=self.config)
-        self.web_search = WebSearch(llm=self.llm, config=self.config)
+        self.web_search = WebSearch(llm=self.llm, config=self.config, verbose=True, search_engine="hybrid")
         self.extractor = QuestionExtractor(self.llm, config=self.config)
         self.history = []
         self.enabled = False
@@ -43,18 +39,26 @@ class RetrieverManager:
         return evaluation, self.extractor.get_evaluate_cost()
 
     def rag_generate(self, query, collection, mode="chain"):
-        if mode == "graph":
-            answer = self.retrieval_alg.do_graphrag(query)
-        elif mode == "self_rag":
-            answer = self.retrieval_alg.do_selfrag(query, collection)
-        else:
-            answer = self.retrieval_alg.do_rag(query, collection)
-        self.history.append({
-            "query": query,
-            "collection": collection,
-            "answer": answer
-        })
-        return answer
+        with console.overlay_session() as o:
+            if mode == "graph":
+                answer = self.retrieval_alg.do_graphrag(query)
+            elif mode == "self_rag":
+                answer = self.retrieval_alg.do_selfrag(query, collection)
+            else:
+                answer = self.retrieval_alg.do_rag(query, collection)
+            self.history.append({
+                "query": query,
+                "collection": collection,
+                "answer": answer
+            })
+            console.overlay_print(f"Retrieval Result: {answer}", 2)
+            return answer
+    
+    def do_web_search(self, query):
+        with console.overlay_session() as o:
+            result = self.web_search.search_web(query)
+            console.overlay_print(result.content, 2)
+            return result.content
 
     
 if __name__ == "__main__":
@@ -65,8 +69,9 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writups")
-    print(answer)
+    # answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
+    result = agent.do_web_search(r"How to write a good scientific paper?")
+    # print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
     # # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
     # # context, answer = agent.rag_generate(response, collection="HFCTF")

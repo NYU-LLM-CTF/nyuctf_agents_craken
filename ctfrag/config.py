@@ -48,6 +48,7 @@ class PromptConfig:
     search_main: str
     search_filtering: str
     search_summary: str
+    search_summary_long: str
     search_evaluation: str
     extract_context_to_task: str
     extract_task_to_question: str
@@ -157,6 +158,7 @@ class RetrieverConfig:
             search_main=search_prompts_cfg.get("search", ""),
             search_filtering=search_prompts_cfg.get("filtering", ""),
             search_summary=search_prompts_cfg.get("summary", ""),
+            search_summary_long=search_prompts_cfg.get("summary_long", ""),      
             search_evaluation=search_prompts_cfg.get("evaluation", ""),
             extract_context_to_task=extract_prompts_cfg.get("context_to_task", ""),
             extract_task_to_question=extract_prompts_cfg.get("task_to_question", ""),

@@ -12,6 +12,7 @@ from langchain.retrievers.contextual_compression import ContextualCompressionRet
 from langchain_community.document_compressors.rankllm_rerank import RankLLMRerank
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain.load import dumps, loads
+from ctfrag.console import console
 
 class ClassicRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
@@ -66,7 +67,7 @@ class ClassicRAG(RAGAlgorithms):
             final_docs = self._search(state["question"])
 
         if not final_docs:
-            print("---NO DOCUMENTS FOUND. RETURNING DEFAULT RESPONSE---")
+            console.overlay_print("---NO DOCUMENTS FOUND. RETURNING DEFAULT RESPONSE---", 5)
             final_docs = [Document(page_content="No relevant documents found.")]
 
         if self.config.feature_config.retrieval_grading:
