@@ -5,14 +5,15 @@ from ctfrag.database import RAGDatabase
 from ctfrag.backends import LLMs
 from langgraph.graph import START, StateGraph
 from langchain_core.documents import Document
-from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
+from langchain.schema.runnable import RunnablePassthrough
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
 from langchain_community.document_compressors.rankllm_rerank import RankLLMRerank
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain.load import dumps, loads
-from ctfrag.console import console
+from ctfrag.console import console, ConsoleType
+from ctfrag.utils import MetadataCaptureCallback
 
 class ClassicRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
@@ -36,6 +37,7 @@ class ClassicRAG(RAGAlgorithms):
             return self.wrap.vector_store.similarity_search(question)
 
     def retrieve(self, state: State):
+        metadata_callback = MetadataCaptureCallback()
         if self.config.feature_config.question_rewriting:
             state["question"] = self.rewrite_question(state["question"])
         if self.config.feature_config.multi_query:
@@ -45,11 +47,14 @@ class ClassicRAG(RAGAlgorithms):
                 | self.wrap.vector_store.as_retriever().map()
                 | self.get_unique_union
             )
-            final_docs = retrieval_chain.invoke({"question": state["question"]})
+            final_docs = retrieval_chain.invoke({"question": state["question"]}, config={"callbacks": [metadata_callback]})
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
         if self.config.feature_config.rag_fusion:
             questions = self._multi_query()
-
-            queries = questions.invoke({"question": state["question"]})
+            queries = questions.invoke({"question": state["question"]}, config={"callbacks": [metadata_callback]})
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
             results = [self._search(query) for query in queries]
             unique_docs = self._reciprocal_rank_fusion(results)
             final_docs=unique_docs
@@ -67,7 +72,7 @@ class ClassicRAG(RAGAlgorithms):
             final_docs = self._search(state["question"])
 
         if not final_docs:
-            console.overlay_print("---NO DOCUMENTS FOUND. RETURNING DEFAULT RESPONSE---", 5)
+            console.overlay_print("---NO DOCUMENTS FOUND. RETURNING DEFAULT RESPONSE---", ConsoleType.SYSTEM)
             final_docs = [Document(page_content="No relevant documents found.")]
 
         if self.config.feature_config.retrieval_grading:
@@ -82,6 +87,7 @@ class ClassicRAG(RAGAlgorithms):
     def chain_retrieve(self, query, collection, template, graph_lc=False) -> None:
         self._create_vector(collection=collection)
         self._create_template(template_str=template)
+        metadata_callback = MetadataCaptureCallback()
         if graph_lc:
             result = self.graph.invoke({"question": query})
             return result["answer"]
@@ -90,10 +96,12 @@ class ClassicRAG(RAGAlgorithms):
             rag_chain = (
                 {"context": retriever,  "question": RunnablePassthrough()}
                 | self.wrap.template
-                | self.llm
+                | self.llm()
                 | StrOutputParser()
             )
-            result = rag_chain.invoke(query)
+            result = rag_chain.invoke(query, config={"callbacks": [metadata_callback]})
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
             return result
         """ state = {"question": query, "context": [], "answer": ""}
         retrieval_result = self.retrieve(state)
@@ -106,7 +114,9 @@ class ClassicRAG(RAGAlgorithms):
     def generate(self, state: State):
         docs_content = "\n\n".join(doc.page_content for doc in state["context"])
         messages = self.wrap.template.invoke({"question": state["question"], "context": docs_content})
-        response = self.llm.invoke(messages)
+        response = self.llm().invoke(messages)
+        token_usages = response.usage_metadata
+        self.llm.update_model_cost(token_usages)
         if self.config.feature_config.hallucination_grading:
             grounded_content = self.grade_hallucination(state["context"], response)
 
@@ -134,7 +144,7 @@ class ClassicRAG(RAGAlgorithms):
                                                      model=self.config.rag_config.reranker_model)
             return
         if compressor == "LLMChainExtractor":
-            self.wrap.compressor = LLMChainExtractor.from_llm(self.llm)
+            self.wrap.compressor = LLMChainExtractor.from_llm(self.llm())
             return
         
     def _create_cretriever(self, cretriever: str):
@@ -147,13 +157,12 @@ class ClassicRAG(RAGAlgorithms):
         # Multi_query : generate five different versions of the given user question
     def _multi_query(self):
         prompt_perspectives = ChatPromptTemplate.from_template(template=self.config.prompts.rag_multi)
-        
         generate_queries = (
             prompt_perspectives 
-            | self.llm
+            | self.llm()
             | StrOutputParser() 
             | (lambda x: x.split("\n"))
-        )
+        )       
         return generate_queries
 
     # Multi_query : only get the unique docs
@@ -188,14 +197,17 @@ class ClassicRAG(RAGAlgorithms):
 
     # Decomposition : generates multiple sub-questions related to an input question
     def _decompose_question(self, question: str):
+        metadata_callback = MetadataCaptureCallback()
         prompt_decomposition = ChatPromptTemplate.from_template(template=self.config.prompts.rag_decompose)
         generate_queries_decomposition = (
             prompt_decomposition
-            | self.llm
+            | self.llm()
             | StrOutputParser()
             | (lambda x: x.split("\n"))
         )
-        sub_questions = generate_queries_decomposition.invoke({"question": question})
+        sub_questions = generate_queries_decomposition.invoke({"question": question}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         return sub_questions
 
     # Decomposition : format multiple sub-questions answers pairss
@@ -213,17 +225,19 @@ class ClassicRAG(RAGAlgorithms):
         for q in sub_questions:
             if self.wrap.retriever is None:
                 self._create_retriever()
-
+            metadata_callback = MetadataCaptureCallback()
             rag_chain = (
                 {"context": lambda x: self.wrap.retriever.get_relevant_documents(x["question"]),  
                 "question": lambda x: x["question"],
                 "q_a_pairs": lambda x: "\n---\n".join(q_a_pairs_list)}  
                 | decomposition_prompt
-                | self.llm
+                | self.llm()
                 | StrOutputParser()
             )
 
-            answer = rag_chain.invoke({"question": q, "q_a_pairs": "\n---\n".join(q_a_pairs_list)}) 
+            answer = rag_chain.invoke({"question": q, "q_a_pairs": "\n---\n".join(q_a_pairs_list)}, config={"callbacks": [metadata_callback]}) 
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
             q_a_pair = self.format_qa_pair(q, answer)
             q_a_pairs_list.append(q_a_pair) 
 
@@ -251,12 +265,15 @@ class ClassicRAG(RAGAlgorithms):
                 ("user", "{question}"),
             ]
         )
+        metadata_callback = MetadataCaptureCallback()
         chain = (
             step_back_prompt
-            | self.llm
+            | self.llm()
             | StrOutputParser()
         )
-        step_back_query = chain.invoke({"question": question})
+        step_back_query = chain.invoke({"question": question}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         return step_back_query
     
     # Step_back : retrieve based on step back question
@@ -270,7 +287,7 @@ class ClassicRAG(RAGAlgorithms):
         step_back_docs = self.wrap.retriever.get_relevant_documents(step_back_query)
         normal_context_text = "\n\n".join(doc.page_content for doc in normal_docs)
         step_back_context_text = "\n\n".join(doc.page_content for doc in step_back_docs)
-
+        metadata_callback = MetadataCaptureCallback()
         chain = (
             {
                 "normal_context": lambda x: normal_context_text,
@@ -278,11 +295,13 @@ class ClassicRAG(RAGAlgorithms):
                 "question": lambda x: x["question"],
             }
             | response_prompt
-            | self.llm
+            | self.llm()
             | StrOutputParser()
         )
 
-        response = chain.invoke({"question": question})
+        response = chain.invoke({"question": question}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         return {
             "response": response,
             "normal_context_docs": normal_docs,

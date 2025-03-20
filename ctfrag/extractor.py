@@ -5,20 +5,12 @@ from ctfrag.config import RetrieverConfig
 import json
 from langchain_community.callbacks import get_openai_callback
 import re
-from enum import Enum
-
-
-class LogLevel(Enum):
-    NONE = 0
-    ERROR = 1
-    INFO = 2
-    DEBUG = 3
+from ctfrag.console import console, ConsoleType
 
 
 class QuestionExtractor:
-    def __init__(self, llm, log_level: LogLevel = LogLevel.NONE, config: RetrieverConfig=None):
+    def __init__(self, llm, config: RetrieverConfig=None):
         self.llm = llm
-        self.log_level = log_level
         self.config = config
         self.format_cost = 0
         self.evaluate_cost = 0
@@ -32,25 +24,12 @@ class QuestionExtractor:
     
     def get_total_cost(self):
         return self.format_cost + self.evaluate_cost
-        
-    def _log(self, message: str, level: LogLevel = LogLevel.INFO) -> None:
-        if level.value <= self.log_level.value:
-            if level == LogLevel.ERROR:
-                print(f"ERROR: {message}")
-            elif level == LogLevel.INFO:
-                print(f"INFO: {message}")
-            elif level == LogLevel.DEBUG:
-                print(f"DEBUG: {message}")
-    
-    def set_log_level(self, level: LogLevel) -> None:
-        self.log_level = level
-        self._log(f"Log level set to {level.name}", LogLevel.INFO)
     
     def _init_extractors(self):
         self.context_to_tasks_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_context_to_task)        
         self.context_to_tasks_chain = (
             self.context_to_tasks_prompt
-            | self.llm
+            | self.llm()
             | StrOutputParser()
             | (lambda x: self._parse_json_tasks_safely(x))
         )
@@ -58,14 +37,14 @@ class QuestionExtractor:
         self.task_to_question_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_task_to_question)
         self.task_to_question_chain = (
             self.task_to_question_prompt
-            | self.llm
+            | self.llm()
             | StrOutputParser()
         )
         
         self.question_evaluation_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_question_evaluation)
         self.question_evaluation_chain = (
             self.question_evaluation_prompt
-            | self.llm
+            | self.llm()
             | StrOutputParser()
             | (lambda x: self._parse_json_safely_evaluation(x))
         )
@@ -73,14 +52,14 @@ class QuestionExtractor:
         self.answer_evaluation_prompt = ChatPromptTemplate.from_template(self.config.prompts.extract_answer_evaluation)
         self.answer_evaluation_chain = (
             self.answer_evaluation_prompt
-            | self.llm
+            | self.llm()
             | StrOutputParser()
             | (lambda x: self._parse_json_safely_answer_evaluation(x))
         )
     
     def _parse_json_tasks_safely(self, json_str: str) -> List[Dict[str, str]]:
         try:
-            self._log(f"Parsing JSON: {json_str[:100]}...", LogLevel.DEBUG)
+            console.overlay_print(f"Parsing JSON: {json_str[:100]}...", ConsoleType.SYSTEM)
             result = json.loads(json_str)
             if isinstance(result, list):
                 tasks = []
@@ -99,7 +78,7 @@ class QuestionExtractor:
             else:
                 return [{"task": str(result)}]
         except json.JSONDecodeError as e:
-            self._log(f"JSON decode error: {e}", LogLevel.ERROR)
+            console.overlay_print(f"JSON decode error: {e}", ConsoleType.SYSTEM)
             tasks = re.findall(r'"task":\s*"([^"]+)"', json_str)
             if tasks:
                 return [{"task": task} for task in tasks]            
@@ -163,18 +142,18 @@ class QuestionExtractor:
             }
     
     def process_context(self, context: str) -> List[Dict[str, Any]]:
-        self._log("Processing context...", LogLevel.INFO)
+        console.overlay_print("Processing context...", ConsoleType.SYSTEM)
         try:
             with get_openai_callback() as cb:
                 tasks = self.context_to_tasks_chain.invoke({"context": context})
                 self.format_cost += cb.total_cost
-            self._log(f"Extracted {len(tasks)} tasks", LogLevel.INFO)
+            console.overlay_print(f"Extracted {len(tasks)} tasks", ConsoleType.SYSTEM)
             
             results = []
             for i, task_info in enumerate(tasks):
                 try:
                     task = task_info.get("task", f"Task {i+1}")
-                    self._log(f"Processing task: {task[:50]}...", LogLevel.INFO)
+                    console.overlay_print(f"Processing task: {task[:50]}...", ConsoleType.SYSTEM)
                     
                     with get_openai_callback() as cb:
                         question = self.task_to_question_chain.invoke({
@@ -201,7 +180,7 @@ class QuestionExtractor:
                             "evaluation": evaluation.get("reason", "Question is suitable for the context")
                         })
                 except Exception as e:
-                    self._log(f"Error processing task {i+1}: {str(e)}", LogLevel.ERROR)
+                    console.overlay_print(f"Error processing task {i+1}: {str(e)}", ConsoleType.ERROR)
                     task_desc = task_info.get("task", f"Task {i+1}")
                     results.append({
                         "task": task_desc,
@@ -219,7 +198,7 @@ class QuestionExtractor:
             return results
             
         except Exception as e:
-            self._log(f"Error in process_context: {str(e)}", LogLevel.ERROR)
+            console.overlay_print(f"Error in process_context: {str(e)}", ConsoleType.ERROR)
             return [{
                 "task": self.config.prompts.extract_wo_task_t,
                 "question": self.config.prompts.extract_wo_task_q,
@@ -228,7 +207,7 @@ class QuestionExtractor:
     
     def evaluate_answer(self, task: str, question: str, answer: str) -> Dict[str, Any]:
         try:
-            self._log(f"Evaluating answer for question: {question[:50]}...", LogLevel.DEBUG)
+            console.overlay_print(f"Evaluating answer for question: {question[:50]}...", ConsoleType.SYSTEM)
             with get_openai_callback() as cb:
                 result = self.answer_evaluation_chain.invoke({
                     "task": task,
@@ -238,7 +217,7 @@ class QuestionExtractor:
                 self.evaluate_cost += cb.total_cost
             return result
         except Exception as e:
-            self._log(f"Error in evaluate_answer: {str(e)}", LogLevel.ERROR)
+            console.overlay_print(f"Error in evaluate_answer: {str(e)}", ConsoleType.ERROR)
             return {
                 "is_relevant": False,
                 "reason": "Error in evaluation, assuming not relevant by default for stricter evaluation"

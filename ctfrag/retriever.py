@@ -7,7 +7,7 @@ from ctfrag.extractor import QuestionExtractor
 from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
 from ctfrag.utils import load_api_keys
-from ctfrag.console import console
+from ctfrag.console import console, ConsoleType
 import warnings
 warnings.filterwarnings("ignore")
 # warnings.simplefilter("ignore", category=DeprecationWarning)
@@ -19,7 +19,7 @@ class RetrieverManager:
         self.config = config
         self.api_key = api_key
         self.model = self.config.agent_config.model_name
-        self.llm = LLMs(model=self.model, config={"temperature": self.config.agent_config.model_temperature})()
+        self.llm = LLMs(model=self.model, config={"temperature": self.config.agent_config.model_temperature})
         self.embeddings = EmbeddingModel(self.config.db_config.embeddings)()
         self.retrieval_alg = RAGAgent(llm=self.llm, embeddings=self.embeddings, config=self.config)
         self.web_search = WebSearch(llm=self.llm, config=self.config, verbose=True, search_engine="hybrid")
@@ -51,13 +51,13 @@ class RetrieverManager:
                 "collection": collection,
                 "answer": answer
             })
-            console.overlay_print(f"Retrieval Result: {answer}", 2)
+            console.overlay_print(f"Retrieval Result: {answer}", ConsoleType.OUTPUT)
             return answer
     
     def do_web_search(self, query):
         with console.overlay_session() as o:
             result = self.web_search.search_web(query)
-            console.overlay_print(result.content, 2)
+            console.overlay_print(result.content, ConsoleType.OUTPUT)
             return result.content
 
     
@@ -69,8 +69,8 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    # answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
-    result = agent.do_web_search(r"How to write a good scientific paper?")
+    answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
+    # result = agent.do_web_search(r"How to write a good scientific paper?")
     # print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
     # # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
