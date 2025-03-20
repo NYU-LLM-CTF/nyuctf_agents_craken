@@ -49,8 +49,6 @@ class OverlayCallbackHandler(BaseCallbackHandler):
         self._init_overlay()
     
     def _init_overlay(self):
-        self.overlay.overlay_print("=== LangChain Verbose Output ===", color=1, row=0)
-        self.overlay.overlay_print("", color=0, row=1)
         self.current_row = 2
         self.max_rows = 20
     

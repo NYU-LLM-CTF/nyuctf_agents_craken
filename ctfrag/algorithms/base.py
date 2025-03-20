@@ -5,6 +5,7 @@ from langchain_core.documents import Document
 from langchain.prompts import ChatPromptTemplate
 from ctfrag.database import RAGDatabase
 from pydantic import BaseModel, Field
+from langchain.schema.output_parser import StrOutputParser
 from ctfrag.utils import MetadataCaptureCallback
 
 class State(TypedDict):
@@ -93,7 +94,7 @@ class RAGAlgorithms:
                 ("human", "Here is the initial question: \n\n {question} \n Formulate an improved question."),
             ]
         )
-        self.question_rewriter = re_write_prompt | self.llm()
+        self.question_rewriter = re_write_prompt | self.llm() | StrOutputParser()
 
         # Self_rag : init for grader generated output for hallucination
     def _init_hallucination_grader(self):
@@ -135,8 +136,8 @@ class RAGAlgorithms:
     
     # Self_rag/question_rewriting : rewriting question
     def rewrite_question(self, question):
-        response_rewrite_question = self.question_rewriter.invoke({"question": question})
-        rewritten_question = response_rewrite_question.content
-        token_usages = response_rewrite_question.usage_metadata
+        metadata_callback = MetadataCaptureCallback()
+        rewritten_question = self.question_rewriter.invoke({"question": question}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
         self.llm.update_model_cost(token_usages)
         return rewritten_question
