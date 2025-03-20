@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks import StdOutCallbackHandler
+from langchain.callbacks.base import BaseCallbackHandler
 
 API_ALIAS = {
     'OPENAI': 'OPENAI_API_KEY',
@@ -308,3 +309,10 @@ class OverlayCallbackHandler(BaseCallbackHandler):
     def _shift_content(self):
         self.current_row = max(self.current_row - 5, 2)
         self.overlay.overlay_print("... (some output condensed) ...", color=3, row=self.current_row - 1)
+
+class MetadataCaptureCallback(BaseCallbackHandler):
+    def __init__(self):
+        self.usage_metadata = None
+        
+    def on_llm_end(self, response, **kwargs):
+        self.usage_metadata = response.generations[0][0].message.usage_metadata

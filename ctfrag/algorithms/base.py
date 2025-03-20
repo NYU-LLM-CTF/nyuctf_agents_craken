@@ -5,6 +5,7 @@ from langchain_core.documents import Document
 from langchain.prompts import ChatPromptTemplate
 from ctfrag.database import RAGDatabase
 from pydantic import BaseModel, Field
+from ctfrag.utils import MetadataCaptureCallback
 
 class State(TypedDict):
     question: str
@@ -106,21 +107,30 @@ class RAGAlgorithms:
 
         # Self_rag/retrieval_grading : grader of retrieved documents for relevent
     def grade_retrieval(self, question, documents):
+        metadata_callback = MetadataCaptureCallback()
         relevant_docs = []
-        grading_result = self.retrieval_grader.invoke({"question": question, "document": documents})
+        grading_result = self.retrieval_grader.invoke({"question": question, "document": documents}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         if grading_result.binary_score.lower() == "yes":
             relevant_docs.append(documents)
         return relevant_docs
 
     # Hallucination_grading : grader generated output for hallucination
     def grade_hallucination(self, documents, generation):
+        metadata_callback = MetadataCaptureCallback()
         docs_content = "\n\n".join(doc.page_content for doc in documents)
-        grading_result = self.hallucination_grader.invoke({"documents": docs_content, "generation": generation})
+        grading_result = self.hallucination_grader.invoke({"documents": docs_content, "generation": generation}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         return grading_result.binary_score.lower() == "yes"
 
     # Answer_grading : init for grader generated output for answered question or not
     def grade_answer(self, question, generation):
-        grading_result = self.answer_grader.invoke({"question": question, "generation": generation})
+        metadata_callback = MetadataCaptureCallback()
+        grading_result = self.answer_grader.invoke({"question": question, "generation": generation}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         return grading_result.binary_score.lower() == "yes"
     
     # Self_rag/question_rewriting : rewriting question

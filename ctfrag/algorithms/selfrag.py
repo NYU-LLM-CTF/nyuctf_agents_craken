@@ -5,7 +5,7 @@ from ctfrag.backends import LLMs
 from ctfrag.console import console, ConsoleType
 from langchain.schema.runnable import RunnablePassthrough
 from langgraph.graph import END, StateGraph
-from langchain.callbacks.base import BaseCallbackHandler
+from ctfrag.utils import MetadataCaptureCallback
 
 class SelfRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
@@ -88,15 +88,20 @@ class SelfRAG(RAGAlgorithms):
         console.overlay_print("---CHECK HALLUCINATIONS---", ConsoleType.SYSTEM)
         question = state["question"]
         documents = state["context"] 
-        generation = state.get("answer", "")  
-
-        score = self.hallucination_grader.invoke({"documents": documents, "generation": generation})
+        generation = state.get("answer", "") 
+        metadata_callback = MetadataCaptureCallback() 
+        score = self.hallucination_grader.invoke({"documents": documents, "generation": generation}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         grade = score.binary_score
 
         if grade == "yes":
             console.overlay_print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---", ConsoleType.SYSTEM)
             console.overlay_print("---GRADE GENERATION vs QUESTION---", ConsoleType.SYSTEM)
-            score = self.answer_grader.invoke({"question": question, "generation": generation})
+            metadata_callback = MetadataCaptureCallback() 
+            score = self.answer_grader.invoke({"question": question, "generation": generation}, config={"callbacks": [metadata_callback]})
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
             grade = score.binary_score
             if grade == "yes":
                 console.overlay_print("---DECISION: GENERATION ADDRESSES QUESTION---", ConsoleType.SYSTEM)
