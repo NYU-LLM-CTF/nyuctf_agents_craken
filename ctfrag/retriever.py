@@ -7,7 +7,7 @@ from ctfrag.decomposer import ContextDecomposer
 from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
 from ctfrag.utils import load_api_keys
-from ctfrag.console import console, ConsoleType
+from ctfrag.console import console, ConsoleType, log
 import warnings
 warnings.filterwarnings("ignore")
 # warnings.simplefilter("ignore", category=DeprecationWarning)
@@ -38,7 +38,7 @@ class RetrieverManager:
             "keywords": decomposition.keywords
         }
 
-    def rag_generate(self, query, collection, mode="chain"):
+    def rag_generate(self, query, collection, mode="chain", index=0):
         with console.overlay_session() as o:
             if mode == "graph":
                 answer = self.retrieval_alg.do_graphrag(query)

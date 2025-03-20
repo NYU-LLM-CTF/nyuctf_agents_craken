@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from ctfrag.console import console, ConsoleType
+from ctfrag.console import console, ConsoleType, LogConsole, DecompositionItem
 from ctfrag.config import RetrieverConfig
 from langchain.chains import LLMChain
 from langchain.output_parsers import PydanticOutputParser
@@ -29,6 +29,10 @@ class ContextDecomposer:
             prompt=self.prompt,
             verbose=False
         )
+        self.init_log()
+
+    def init_log(self):
+        self._log = DecompositionItem()
     
     def decompose_task(self, context: str) -> Decomposition:
         try:
