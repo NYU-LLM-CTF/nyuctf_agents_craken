@@ -13,7 +13,7 @@ from langchain_community.document_compressors.rankllm_rerank import RankLLMReran
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain.load import dumps, loads
 from ctfrag.console import console, ConsoleType
-from ctfrag.utils import MetadataCaptureCallback
+from ctfrag.utils import MetadataCaptureCallback, DocumentDisplayCallback
 
 class ClassicRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
@@ -92,6 +92,7 @@ class ClassicRAG(RAGAlgorithms):
             result = self.graph.invoke({"question": query})
             return result["answer"]
         else:
+            doc_callback = DocumentDisplayCallback()
             retriever = self.wrap.vector_store.as_retriever()
             rag_chain = (
                 {"context": retriever,  "question": RunnablePassthrough()}
@@ -99,7 +100,7 @@ class ClassicRAG(RAGAlgorithms):
                 | self.llm()
                 | StrOutputParser()
             )
-            result = rag_chain.invoke(query, config={"callbacks": [metadata_callback]})
+            result = rag_chain.invoke(query, config={"callbacks": [metadata_callback, doc_callback]})
             token_usages = metadata_callback.usage_metadata
             self.llm.update_model_cost(token_usages)
             return result

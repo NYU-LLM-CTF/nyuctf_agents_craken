@@ -39,6 +39,7 @@ class RetrieverManager:
         }
 
     def rag_generate(self, query, collection, mode="chain", index=0):
+        log.set_index(index)
         with console.overlay_session() as o:
             if mode == "graph":
                 answer = self.retrieval_alg.do_graphrag(query)
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    # answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
+    answer = agent.rag_generate("how to reverse", mode="chain", collection="writeups")
     # result = agent.do_web_search(r"How to write a good scientific paper?")
     # print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
