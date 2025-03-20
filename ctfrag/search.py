@@ -6,7 +6,7 @@ from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_community.callbacks import get_openai_callback
 from readability import Document
 from ctfrag.config import RetrieverConfig
-from ctfrag.console import console, ConsoleType
+from ctfrag.console import console, ConsoleType, log, WebSearchItem
 import urllib.parse
 import re
 import json
@@ -51,6 +51,7 @@ class WebSearch:
         self.child_link_count: int = 30
         self.max_search_results: int = 10
         self.parser: bool = "newspaper"
+        self.init_log()
         
         # Request headers
         self.headers = {
@@ -59,6 +60,9 @@ class WebSearch:
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
+
+    def init_log(self):
+        self._log = WebSearchItem()
 
     def _run_duckduckgo_search(self, keywords: str) -> List[dict]:
         if self.verbose:

@@ -7,6 +7,7 @@ from ctfrag.database import RAGDatabase
 from pydantic import BaseModel, Field
 from langchain.schema.output_parser import StrOutputParser
 from ctfrag.utils import MetadataCaptureCallback
+from ctfrag.console import log, RAGItem
 
 class State(TypedDict):
     question: str
@@ -46,6 +47,10 @@ class RAGAlgorithms:
         self._init_hallucination_grader()
         self._init_answer_grader()
         self._init_question_rewriter()
+        self.init_log()
+
+    def init_log(self):
+        self._log = RAGItem()
 
     def _create_vector(self, collection: str=None):
         if not collection:

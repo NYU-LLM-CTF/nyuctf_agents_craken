@@ -314,3 +314,10 @@ class MetadataCaptureCallback(BaseCallbackHandler):
         
     def on_llm_end(self, response, **kwargs):
         self.usage_metadata = response.generations[0][0].message.usage_metadata
+
+class DocumentDisplayCallback(BaseCallbackHandler):
+    def __init__(self):
+        self.documents = []
+    
+    def on_retriever_end(self, documents, **kwargs):
+        self.documents = documents

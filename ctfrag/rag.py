@@ -32,7 +32,7 @@ class RAGAgent:
         return answer
 
     def do_rag(self, query, collection):
-        answer = self.classic_rag.chain_retrieve(query, collection, self.config.prompts.rag_main, graph_lc=True)
+        answer = self.classic_rag.chain_retrieve(query, collection, self.config.prompts.rag_main)
         return answer
 
     def do_graphrag(self, query):

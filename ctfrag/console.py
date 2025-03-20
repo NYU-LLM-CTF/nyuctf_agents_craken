@@ -84,9 +84,25 @@ class LogConsole:
         self.search = []
         self.rag = []
         self.extract = []
+        self.index = 0
         
     def dump(self):
         pass
+
+    def set_index(self, index):
+        self.index = index
+
+    def get_current_index(self):
+        return self.index
+    
+    def update_raglog(self, logs:RAGItem):
+        self.rag.append(logs)
+
+    def update_searchlog(self, logs:WebSearchItem):
+        self.rag.append(logs)
+
+    def update_decompositionlog(self, logs:DecompositionItem):
+        self.extract.append(logs)
 
 
 class OverlayConsole:
@@ -262,3 +278,4 @@ class OverlayConsole:
             self.overlay_end()
 
 console = OverlayConsole(debug=True, quiet=False)
+log = LogConsole()
