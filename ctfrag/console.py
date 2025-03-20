@@ -2,12 +2,15 @@ import curses
 import threading
 import time
 from contextlib import contextmanager
+from enum import Enum
+
+class ConsoleType(Enum):
+    SYSTEM = 5
+    ERROR = 1
+    INFO = 3
+    OUTPUT = 2
 
 class OverlayConsole:
-    """
-    A class to create an overlay window on the terminal that can display information 
-    without disrupting the main content.
-    """
     def __init__(self, debug=False, quiet=False):
         self.overlay_active = False
         self.stdscr = None
@@ -95,7 +98,7 @@ class OverlayConsole:
         self.overlay_window = None
         self.stdscr = None
     
-    def overlay_print(self, text, color=0, row=None, auto_wrap=True):
+    def overlay_print(self, text, color:ConsoleType=3, row=None, auto_wrap=True, bold=True):
         if self.quiet:
             return
         if self.debug:
@@ -103,6 +106,11 @@ class OverlayConsole:
             return
         if not self.overlay_active:
             return
+        
+        color = color.value
+
+        if color  == ConsoleType.INFO.value or color == ConsoleType.OUTPUT.value:
+            bold = False
             
         with self.overlay_lock:
             available_width = self.overlay_width - 4
@@ -117,17 +125,17 @@ class OverlayConsole:
             if row is not None:
                 if 0 <= row < self.max_lines:
                     while len(self.content_lines) <= row:
-                        self.content_lines.append(("", 0))                    
-                    self.content_lines[row] = (wrapped_lines[0], color)
+                        self.content_lines.append(("", 0, False))                    
+                    self.content_lines[row] = (wrapped_lines[0], color, bold)
                     
                     for i, line in enumerate(wrapped_lines[1:], 1):
                         if row + i < self.max_lines:
                             while len(self.content_lines) <= row + i:
-                                self.content_lines.append(("", 0))
-                            self.content_lines[row + i] = (line, color)
+                                self.content_lines.append(("", 0, False))
+                            self.content_lines[row + i] = (line, color, bold)
             else:
                 for line in wrapped_lines:
-                    self.content_lines.append((line, color))                
+                    self.content_lines.append((line, color, bold))                
                 if len(self.content_lines) > self.max_lines:
                     self.content_lines = self.content_lines[-self.max_lines:]
     
@@ -146,13 +154,15 @@ class OverlayConsole:
                         for y in range(1, self.overlay_height - 1):
                             self.overlay_window.addstr(y, 1, " " * (self.overlay_width - 2))
 
-                        for i, (text, color) in enumerate(self.content_lines):
+                        for i, (text, color, bold) in enumerate(self.content_lines):
                             if i >= self.max_lines:
                                 break
 
                             display_text = text[:self.overlay_width - 4]
                             try:
                                 color_attr = curses.color_pair(color) if color else 0
+                                if bold:
+                                    color_attr |= curses.A_BOLD
                                 self.overlay_window.addstr(i + 1, 2, display_text, color_attr)
                             except:
                                 pass
@@ -172,4 +182,4 @@ class OverlayConsole:
         finally:
             self.overlay_end()
 
-console = OverlayConsole(debug=False, quiet=False)
+console = OverlayConsole(debug=True, quiet=False)

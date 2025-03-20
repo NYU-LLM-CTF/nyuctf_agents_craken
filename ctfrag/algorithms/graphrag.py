@@ -15,7 +15,7 @@ class GraphRAG(RAGAlgorithms):
 
     def graph_retrieve(self, query):
         chain = GraphCypherQAChain.from_llm(
-            self.llm, graph=self.graph, verbose=True, top_k=5, allow_dangerous_requests=True
+            self.llm(), graph=self.graph, verbose=True, top_k=5, allow_dangerous_requests=True
         )
 
         result = chain.invoke({"query": query})['result']

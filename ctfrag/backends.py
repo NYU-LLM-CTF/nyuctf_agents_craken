@@ -38,8 +38,9 @@ class EmbeddingModel:
         return self.embeddings
     
 class LLMBackend:
-    def __init__(self, config: dict):
+    def __init__(self, model, config: dict):
         self.config = config
+        self.model_name = model
         self.llm = None
 
     def __call__(self):
@@ -90,7 +91,7 @@ class OpenAIBackend(LLMBackend):
         },
     }
     def __init__(self, model, config: dict):
-        super().__init__(config)
+        super().__init__(model, config)
         self.llm = ChatOpenAI(model=model, 
                               temperature=self.config["temperature"])
 
@@ -119,7 +120,7 @@ class TogetherBackend(LLMBackend):
         }
     }
     def __init__(self, model, config: dict):
-        super().__init__(config)
+        super().__init__(model, config)
         self.llm = ChatTogether(model=model, 
                                 temperature=self.config["temperature"])
 
@@ -138,7 +139,7 @@ class AnthropicBackend(LLMBackend):
         }
     }
     def __init__(self, model, config: dict):
-        super().__init__(config)
+        super().__init__(model, config)
         self.llm = ChatAnthropic(model=model, 
                                 temperature=self.config["temperature"])
 
@@ -173,7 +174,7 @@ class GeminiBackend(LLMBackend):
         }
     }
     def __init__(self, model, config: dict):
-        super().__init__(config)
+        super().__init__(model, config)
         self.llm = ChatGoogleGenerativeAI(model=model, 
                                 temperature=self.config["temperature"])
         
@@ -182,7 +183,23 @@ MODELS = {m: b for b in BACKENDS for m in b.MODELS}
 
 class LLMs:
     def __init__(self, model, config: dict):
-        self.llm = MODELS[model](model, config)
+        self.model_name = model
+        self.llm_backend: LLMBackend = MODELS[model](model, config)
+        self.model_cost = 0.0
+        self.search_cost = 0.0
 
+    def update_search_cost(self, number_requests):
+        self.search_cost += number_requests * 0.005
+
+    def update_model_cost(self, meta_data):
+        self.model_cost += self._calculate_cost(meta_data)
+
+    def _calculate_cost(self, meta_data):
+        in_price = self.llm_backend.MODELS[self.model_name]["cost_per_input_token"]
+        out_price = self.llm_backend.MODELS[self.model_name]["cost_per_output_token"]
+        return in_price * meta_data["input_tokens"] + out_price * meta_data["output_tokens"]
+
+    # Get backend model such as ChatOpenAI()
+    # LLMs -> Backend -> ChatAI
     def __call__(self):
-        return self.llm()
+        return self.llm_backend()

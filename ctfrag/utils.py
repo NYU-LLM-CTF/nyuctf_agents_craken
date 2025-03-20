@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain.schema import LLMResult
+from langchain.callbacks import StdOutCallbackHandler
 
 API_ALIAS = {
     'OPENAI': 'OPENAI_API_KEY',
@@ -308,29 +308,3 @@ class OverlayCallbackHandler(BaseCallbackHandler):
     def _shift_content(self):
         self.current_row = max(self.current_row - 5, 2)
         self.overlay.overlay_print("... (some output condensed) ...", color=3, row=self.current_row - 1)
-
-class CostTracker:
-    def __init__(self):
-        self.google_search_price = 0.005
-        self.reset()
-    
-    def reset(self):
-        self.google_search_cost = 0
-        self.duckduckgo_search_cost = 0
-        self.llm_model = ""
-        self.llm_cost = 0.0
-
-    def add_search_cost(self):
-        self.google_search_cost += self.google_search_price
-
-    def add_cost(self, llm_cost):
-        self.llm_cost += llm_cost
-    
-    def get_cost_summary(self):
-        return {
-            "google_search_cost": round(self.google_search_cost, 4),
-            "duckduckgo_search_cost": 0,
-            "llm_model": self.llm_model,
-            "llm_cost": round(self.llm_cost, 4),
-            "total_cost": round(self.google_search_cost + self.llm_cost, 4)
-        }

@@ -6,7 +6,7 @@ from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_community.callbacks import get_openai_callback
 from readability import Document
 from ctfrag.config import RetrieverConfig
-from ctfrag.console import console
+from ctfrag.console import console, ConsoleType
 import urllib.parse
 import re
 import json
@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 import os
 from typing import List, Tuple
 from newspaper import Article
-from ctfrag.utils import CostTracker, OverlayCallbackHandler
+from ctfrag.utils import OverlayCallbackHandler
 from langchain.schema.document import Document as LangchainDocument
 
 class WebSearchResult:
@@ -29,14 +29,11 @@ class WebSearch:
         self.verbose = verbose
         self.config = config
         self.handler = OverlayCallbackHandler(console)
-        self.cost_tracker = CostTracker()
         self.search_engine = search_engine.lower()
         if self.search_engine not in ["google", "duckduckgo", "hybrid"]:
-            console.overlay_print(f"Invalid search engine option: {search_engine}. Defaulting to hybrid.", 1)
+            console.overlay_print(f"Invalid search engine option: {search_engine}. Defaulting to hybrid.", ConsoleType.ERROR)
             self.search_engine = "hybrid"
             
-        if self.verbose:
-            console.overlay_print(f"Using search engine: {self.search_engine}", 5)
         self.llm = llm
 
         if self.search_engine in ["google", "hybrid"]:
@@ -49,7 +46,7 @@ class WebSearch:
             self.duckduckgo_search = DuckDuckGoSearchResults(output_format="list")
         
         self.prompt = PromptTemplate(input_variables=["query"], template=self.config.prompts.search_main)
-        self.keyword_chain = self.prompt | self.llm
+        self.keyword_chain = self.prompt | self.llm()
         self.is_parser_detail: bool = True
         self.child_link_count: int = 30
         self.max_search_results: int = 10
@@ -65,15 +62,11 @@ class WebSearch:
 
     def _run_duckduckgo_search(self, keywords: str) -> List[dict]:
         if self.verbose:
-            console.overlay_print(f"Running DuckDuckGo search for: {keywords}", 5)
+            console.overlay_print(f"Running DuckDuckGo search for: {keywords}", ConsoleType.SYSTEM)
             
         try:
-            # Use LangChain's DuckDuckGo search tool
             results = self.duckduckgo_search.invoke(keywords)
-            
-            # DuckDuckGo returns a list of dictionaries with title, link, and snippet
             if isinstance(results, list) and results and isinstance(results[0], dict):
-                # Format is already correct, just ensure all required keys are present
                 parsed_results = []
                 
                 for item in results[:self.max_search_results]:
@@ -82,21 +75,18 @@ class WebSearch:
                             "title": item.get("title", "No title found"),
                             "link": item.get("link", ""),
                             "snippet": item.get("snippet", "No snippet available"),
-                            "displayLink": item.get("link", "").split("//")[-1].split("/")[0]  # Extract domain
+                            "displayLink": item.get("link", "").split("//")[-1].split("/")[0]
                         })
                 
                 return parsed_results
             else:
-                # Fallback to string parsing if result format is different
-                console.overlay_print("Unexpected DuckDuckGo search result format, attempting to parse as string", 3)
+                console.overlay_print("Unexpected DuckDuckGo search result format, attempting to parse as string", ConsoleType.SYSTEM)
                 parsed_results = []
                 
                 if isinstance(results, str):
-                    # Split the results by new lines
                     result_items = results.split("\n")
                     
                     for item in result_items[:self.max_search_results]:
-                        # Try to extract title and URL
                         url_match = re.search(r'https?://[^\s]+', item)
                         if url_match:
                             url = url_match.group(0)
@@ -117,27 +107,26 @@ class WebSearch:
                 
                 return parsed_results
         except Exception as e:
-            console.overlay_print(f"Error in DuckDuckGo search: {e}", 1)
+            console.overlay_print(f"Error in DuckDuckGo search: {e}", ConsoleType.ERROR)
             return []
 
     def _run_google_search(self, keywords: str) -> List[dict]:
         if self.verbose:
-            console.overlay_print(f"Running Google search for: {keywords}", 5)
+            console.overlay_print(f"Running Google search for: {keywords}", ConsoleType.SYSTEM)
             
         try:
             encoded_keywords = urllib.parse.quote(keywords)
             search_params = f"{self.system_params}&q={encoded_keywords}&lr=lang_en&sort=review-rating:d:s"
             search_response = requests.get(url=f"{self.base_url}?{search_params}")
             search_result = json.loads(search_response.text)
-            self.cost_tracker.add_search_cost()
             if search_result and "items" in search_result:
                 return search_result["items"][:self.max_search_results]
             else:
-                console.overlay_print("No Google search results found", 3)
+                console.overlay_print("No Google search results found", ConsoleType.INFO)
                 return []
                 
         except Exception as e:
-            console.overlay_print(f"Error in Google search: {e}", 1)
+            console.overlay_print(f"Error in Google search: {e}", ConsoleType.ERROR)
             return []
 
     @staticmethod
@@ -170,7 +159,7 @@ class WebSearch:
                     return line.split(':', 1)[1].strip()
             return output_text.strip()
         except Exception as e:
-            console.overlay_print(f"Error parsing output: {e}", 1)
+            console.overlay_print(f"Error parsing output: {e}", ConsoleType.ERROR)
             return output_text.strip()
     
     def _extract_links(self, html_content: str, display_link: str, query: str) -> List[str]:
@@ -197,7 +186,7 @@ class WebSearch:
             input_variables=["context", "query"],
             template=self.config.prompts.search_filtering
         )
-        filter_chain = filter_prompt | self.llm.bind(temperature=0.95, top_p=0.7)
+        filter_chain = filter_prompt | self.llm().bind(temperature=0.95, top_p=0.7)
         result = filter_chain.invoke({"context": context, "query": query})
         if hasattr(result, 'content'):
             result = result.content
@@ -209,7 +198,7 @@ class WebSearch:
                 if matched_content:
                     matching_texts = [text.strip() for text in matched_content.split(',')]
         except Exception as e:
-            console.overlay_print(f"Error extracting links from LLM output: {e}", 1)
+            console.overlay_print(f"Error extracting links from LLM output: {e}", ConsoleType.ERROR)
         filtered_links = [
             item["link"] for item in links 
             if any(text.lower() in item["text"].lower() for text in matching_texts)
@@ -229,7 +218,7 @@ class WebSearch:
             template=self.config.prompts.search_summary
         )
 
-        summary_chain = summary_prompt | self.llm.bind(temperature=0.95, top_p=0.7)
+        summary_chain = summary_prompt | self.llm().bind(temperature=0.95, top_p=0.7)
         result = summary_chain.invoke({"content": base_content_info, "query": query})
         if hasattr(result, 'content'):
             content = result.content
@@ -246,7 +235,7 @@ class WebSearch:
             input_variables=["content", "query"],
             template=self.config.prompts.search_evaluation
         )
-        evaluation_chain = evaluation_prompt | self.llm.bind(temperature=0.95, top_p=0.7)
+        evaluation_chain = evaluation_prompt | self.llm().bind(temperature=0.95, top_p=0.7)
         result = evaluation_chain.invoke({"content": summary, "query": query})
         if hasattr(result, 'content'):
             result = result.content
@@ -260,7 +249,7 @@ class WebSearch:
             docs = [LangchainDocument(page_content=text) for text in texts]
             prompt = PromptTemplate(template=self.config.prompts.search_summary_long, input_variables=["text"])
             chain = load_summarize_chain(
-                self.llm.bind(temperature=0.8, top_p=0.7),
+                self.llm().bind(temperature=0.8, top_p=0.7),
                 chain_type="map_reduce",
                 return_intermediate_steps=False,
                 map_prompt=prompt,
@@ -278,7 +267,7 @@ class WebSearch:
             else:
                 return str(result)
         except Exception as e:
-            console.overlay_print(f"Error summarizing content: {e}", 1)
+            console.overlay_print(f"Error summarizing content: {e}", ConsoleType.ERROR)
             return html_content[:5000] + "..."
 
     def _load_html_content(self, url: str, query: str, display_link: str = None) -> str:
@@ -286,7 +275,7 @@ class WebSearch:
         
         try:
             if self.verbose:
-                console.overlay_print(f"Fetching URL: {url}", 5)
+                console.overlay_print(f"Fetching URL: {url}", ConsoleType.SYSTEM)
                 
             response = requests.get(url=url, headers=self.headers, timeout=10)
             if response.status_code != 200:
@@ -309,13 +298,13 @@ class WebSearch:
             
             if not is_usable and display_link:
                 if self.verbose:
-                    console.overlay_print(f"Main content not usable, extracting internal links from {display_link}", 3)
+                    console.overlay_print(f"Main content not usable, extracting internal links from {display_link}", ConsoleType.INFO)
                 link_list = self._extract_links(html_text, display_link, query)                
                 unsuccessful_sublinks = []                
                 for i, item_url in enumerate(link_list[:self.child_link_count]):
                     try:
                         if self.verbose:
-                            console.overlay_print(f"Trying sublink {i+1}/{len(link_list[:self.child_link_count])}: {item_url}", 5)
+                            console.overlay_print(f"Trying sublink {i+1}/{len(link_list[:self.child_link_count])}: {item_url}", ConsoleType.SYSTEM)
                             
                         sub_response = requests.get(url=item_url, headers=self.headers, timeout=10)
                         if sub_response.status_code == 200:
@@ -334,19 +323,19 @@ class WebSearch:
                             
                             if sub_is_usable:
                                 if self.verbose:
-                                    console.overlay_print(f"Found usable content in sublink: {item_url}", 3)
+                                    console.overlay_print(f"Found usable content in sublink: {item_url}", ConsoleType.INFO)
                                 content = sub_content
                                 break
                         else:
                             error_msg = f"Website: {item_url} cannot be accessed, Status code: {sub_response.status_code}, Ignore"
                             unsuccessful_sublinks.append(error_msg)
                             if self.verbose:
-                                console.overlay_print(error_msg, 1)
+                                console.overlay_print(error_msg, ConsoleType.ERROR)
                     except Exception as sub_e:
                         error_msg = f"Website: {item_url} cannot be accessed, Error: {str(sub_e)}, Ignore"
                         unsuccessful_sublinks.append(error_msg)
                         if self.verbose:
-                            console.overlay_print(error_msg, 1)
+                            console.overlay_print(error_msg, ConsoleType.ERROR)
                         continue
 
                 if not content and unsuccessful_sublinks:
@@ -354,7 +343,7 @@ class WebSearch:
                     
         except Exception as e:
             error_msg = f"Website: {url} cannot be accessed, Error: {str(e)}, Ignore"
-            console.overlay_print(error_msg, 1)
+            console.overlay_print(error_msg, ConsoleType.ERROR)
             content = error_msg
             
         return content
@@ -379,7 +368,7 @@ class WebSearch:
 
     def _merge_search_results(self, google_results: List[dict], duckduckgo_results: List[dict]) -> List[dict]:
         if self.verbose:
-            console.overlay_print("Merging search results from Google and DuckDuckGo", 5)            
+            console.overlay_print("Merging search results from Google and DuckDuckGo", ConsoleType.SYSTEM)            
         seen_urls = set()
         merged_results = []        
         max_items = min(self.max_search_results, max(len(google_results), len(duckduckgo_results)) * 2)
@@ -410,17 +399,18 @@ class WebSearch:
             
         try:
             if self.verbose:
-                console.overlay_print(f"Starting web search for query: {query}", 5)
-                console.overlay_print("=" * 40, 5)
-                console.overlay_print("STEP 1: Extracting keywords from query", 5)
+                console.overlay_print(f"Using search engine: {self.search_engine}", ConsoleType.SYSTEM)
+                console.overlay_print(f"Starting web search for query: {query}", ConsoleType.SYSTEM)
+                console.overlay_print("=" * 40, ConsoleType.SYSTEM)
+                console.overlay_print("STEP 1: Extracting keywords from query", ConsoleType.SYSTEM)
                 
             result = self.keyword_chain.invoke({"query": query})
             keywords = self.parser_output(result)
             
             if self.verbose:
-                console.overlay_print(f"Extracted keywords: {keywords}", 5)
-                console.overlay_print("=" * 40, 5)
-                console.overlay_print(f"STEP 2: Performing {self.search_engine.upper()} search", 5)
+                console.overlay_print(f"Extracted keywords: {keywords}", ConsoleType.SYSTEM)
+                console.overlay_print("=" * 40, ConsoleType.SYSTEM)
+                console.overlay_print(f"STEP 2: Performing {self.search_engine.upper()} search", ConsoleType.SYSTEM)
                 
             search_items = []
             
@@ -439,9 +429,9 @@ class WebSearch:
             
             if search_items:
                 if self.verbose:
-                    console.overlay_print(f"Found {len(search_items)} search results", 3)
-                    console.overlay_print(f"Processing results", 5)
-                    console.overlay_print("=" * 40, 5)
+                    console.overlay_print(f"Found {len(search_items)} search results", ConsoleType.INFO)
+                    console.overlay_print(f"Processing results", ConsoleType.SYSTEM)
+                    console.overlay_print("=" * 40, ConsoleType.SYSTEM)
                 
                 if not self.is_parser_detail:
                     for item in search_items:
@@ -458,8 +448,8 @@ class WebSearch:
                             continue
                             
                         if self.verbose:
-                            console.overlay_print(f"STEP 3.{i+1}: Processing search result: {item.get('title', '')}", 5)
-                            console.overlay_print(f"URL: {url}", 3)
+                            console.overlay_print(f"STEP 3.{i+1}: Processing search result: {item.get('title', '')}", ConsoleType.SYSTEM)
+                            console.overlay_print(f"URL: {url}", ConsoleType.INFO)
                             
                         detail = self._load_html_content(
                             url=url, 
@@ -470,12 +460,12 @@ class WebSearch:
                         if detail and detail.startswith("Website:") and "cannot be accessed" in detail:
                             inaccessible_websites.append(detail)
                             if self.verbose:
-                                console.overlay_print(f"Skipping inaccessible website: {url}", 3)
+                                console.overlay_print(f"Skipping inaccessible website: {url}", ConsoleType.INFO)
                             continue
                         
                         if not detail:
                             if self.verbose:
-                                console.overlay_print(f"No usable content found for {url}", 3)
+                                console.overlay_print(f"No usable content found for {url}", ConsoleType.INFO)
                             continue
                             
                         content_items.append({
@@ -486,30 +476,30 @@ class WebSearch:
                         })
                         
                         if self.verbose:
-                            console.overlay_print(f"Successfully extracted content from {url}", 3)
-                            console.overlay_print("-" * 40, 3)
+                            console.overlay_print(f"Successfully extracted content from {url}", ConsoleType.INFO)
+                            console.overlay_print("-" * 40, ConsoleType.INFO)
                     
                     if content_items:
                         if self.verbose:
-                            console.overlay_print("=" * 40, 5)
-                            console.overlay_print("STEP 4: Creating final summary", 5)
+                            console.overlay_print("=" * 40, ConsoleType.SYSTEM)
+                            console.overlay_print("STEP 4: Creating final summary", ConsoleType.SYSTEM)
                             
                         final_content = self._final_summary(content_items, query)
                         
                         if self.verbose:
-                            console.overlay_print("Summary generation complete", 5)
-                            console.overlay_print("=" * 40, 5)
+                            console.overlay_print("Summary generation complete", ConsoleType.SYSTEM)
+                            console.overlay_print("=" * 40, ConsoleType.SYSTEM)
                     
                     if inaccessible_websites:
                         inaccessible_info = "\n\n" + "\n".join(inaccessible_websites)
                         final_content = final_content + inaccessible_info if final_content else inaccessible_info
             else:
                 if self.verbose:
-                    console.overlay_print("No search results found", 3)
+                    console.overlay_print("No search results found", ConsoleType.INFO)
             
             return WebSearchResult(content=final_content, websites=content_items)
             
         except Exception as e:
-            console.overlay_print(f"Error in search_web: {e}", 1)
-            console.overlay_print(f"Traceback: {traceback.format_exc()}", 1)
+            console.overlay_print(f"Error in search_web: {e}", ConsoleType.ERROR)
+            console.overlay_print(f"Traceback: {traceback.format_exc()}", ConsoleType.ERROR)
             return WebSearchResult(content="Error occurred during web search.", websites=[])
