@@ -4,6 +4,7 @@ from ctfrag.config import RetrieverConfig
 from langchain.chains import LLMChain
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
+from ctfrag.utils import MetadataCaptureCallback
 import re
 
 class Decomposition(BaseModel):
@@ -17,7 +18,7 @@ class ContextDecomposer:
         self.config = config
         self.parser = PydanticOutputParser(pydantic_object=Decomposition)
         self.prompt = PromptTemplate(
-            template=self.config.prompts.extract_composition,
+            template=self.config.prompts.decomposer_composition,
             input_variables=["context"],
             partial_variables={
                 "format_instructions": self.parser.get_format_instructions(),
@@ -31,7 +32,10 @@ class ContextDecomposer:
     
     def decompose_task(self, context: str) -> Decomposition:
         try:
-            output = self.chain.run(context=context)
+            metadata_callback = MetadataCaptureCallback()
+            output = self.chain.run(context=context, callbacks=[metadata_callback])
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
             json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', output, re.DOTALL)
             if json_match:
                 output = json_match.group(1)
