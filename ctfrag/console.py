@@ -3,12 +3,91 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import Enum
+from dataclasses import dataclass, field
+from typing import List, Any
 
 class ConsoleType(Enum):
     SYSTEM = 5
     ERROR = 1
     INFO = 3
     OUTPUT = 2
+
+@dataclass
+class RAGItem:
+    index: int = 0
+    trajectories: List[Any] = field(default_factory=list)
+    source: List[List[str]] = field(default_factory=list)
+    shortcut: List[List[str]] = field(default_factory=list)
+    generation: List[str] = field(default_factory=list)
+    query: List[str] = field(default_factory=list)
+    hallucinations: List[bool] = field(default_factory=list)
+    document_quality: List[bool] = field(default_factory=list)
+    answer_quality: List[bool] = field(default_factory=list)
+    final_answer: str = ""
+
+
+@dataclass
+class WebSearchItem:
+    index: int = 0
+    source: List[List[Any]] = field(default_factory=list)
+    summarization: List[str] = field(default_factory=list)
+    answer: str = ""
+
+
+@dataclass
+class DecompositionItem:
+    index: int = 0
+    context: str = ""
+    task: str = ""
+    query: str = ""
+    keywords: str = ""
+
+"""
+rag: [
+    {
+        "index": 1
+        "trajectories": [],
+        "source": [["", "", ""], [], []],
+        "shortcut": [["", "", ""], [], []],
+        "generation": ["", "", ""]
+        "query": ["", "", ""],
+        "hallucinations": [True, True, False],      
+        "document_quality": [True, False, True],
+        "answer_quality": [True, True, True],
+        "final_answer": "",
+    },
+    {
+        ...
+    }
+]
+web_search: [
+    {
+        "index": 1
+        "source": [[], [], []],
+        "summarization": ["", "", "“],
+        "answer": "",
+    }
+]
+decomposition: [
+    {
+        "index": 1
+        "context": "",
+        "task": "",
+        "query": "",
+        "keywords": "",
+    }
+]
+"""
+class LogConsole:
+
+    def __init__(self):
+        self.search = []
+        self.rag = []
+        self.extract = []
+        
+    def dump(self):
+        pass
+
 
 class OverlayConsole:
     def __init__(self, debug=False, quiet=False):
