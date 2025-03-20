@@ -198,6 +198,9 @@ class LLMs:
         in_price = self.llm_backend.MODELS[self.model_name]["cost_per_input_token"]
         out_price = self.llm_backend.MODELS[self.model_name]["cost_per_output_token"]
         return in_price * meta_data["input_tokens"] + out_price * meta_data["output_tokens"]
+    
+    def get_cost(self):
+        return self.model_cost + self.search_cost
 
     # Get backend model such as ChatOpenAI()
     # LLMs -> Backend -> ChatAI

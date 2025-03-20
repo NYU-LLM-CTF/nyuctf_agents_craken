@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 from ctfrag.rag import RAGAgent
 from ctfrag.config import RetrieverConfig
-from ctfrag.extractor import QuestionExtractor
+from ctfrag.decomposer import ContextDecomposer
 from ctfrag.backends import LLMs, EmbeddingModel
 from ctfrag.search import WebSearch
 from ctfrag.utils import load_api_keys
@@ -23,7 +23,7 @@ class RetrieverManager:
         self.embeddings = EmbeddingModel(self.config.db_config.embeddings)()
         self.retrieval_alg = RAGAgent(llm=self.llm, embeddings=self.embeddings, config=self.config)
         self.web_search = WebSearch(llm=self.llm, config=self.config, verbose=True, search_engine="hybrid")
-        self.extractor = QuestionExtractor(self.llm, config=self.config)
+        self.extractor = ContextDecomposer(self.llm, config=self.config)
         self.history = []
         self.enabled = False
     
@@ -31,12 +31,12 @@ class RetrieverManager:
         self.enabled = True
 
     def summarize_context(self, context):
-        processed_text = self.extractor.process_context(context)
-        return processed_text, self.extractor.get_format_cost()
-    
-    def evaluate_task(self, task, question, answer):
-        evaluation = self.extractor.evaluate_answer(task=task, question=question, answer=answer)
-        return evaluation, self.extractor.get_evaluate_cost()
+        decomposition = self.extractor.decompose_task(context)
+        return {
+            "task": decomposition.task,
+            "query": decomposition.query,
+            "keywords": decomposition.keywords
+        }
 
     def rag_generate(self, query, collection, mode="chain"):
         with console.overlay_session() as o:
@@ -52,6 +52,7 @@ class RetrieverManager:
                 "answer": answer
             })
             console.overlay_print(f"Retrieval Result: {answer}", ConsoleType.OUTPUT)
+            print(f"Cost: {round(self.llm.get_cost(), 2)}")
             return answer
     
     def do_web_search(self, query):
@@ -69,7 +70,7 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
+    # answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
     # result = agent.do_web_search(r"How to write a good scientific paper?")
     # print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
