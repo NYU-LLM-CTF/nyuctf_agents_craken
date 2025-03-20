@@ -50,15 +50,8 @@ class PromptConfig:
     search_summary: str
     search_summary_long: str
     search_evaluation: str
-    extract_context_to_task: str
-    extract_task_to_question: str
-    extract_question_evaluation: str
-    extract_answer_evaluation: str
-    extract_w_task_q: str
-    extract_w_task_e: str
-    extract_wo_task_t: str
-    extract_wo_task_q: str
-    extract_wo_task_e: str
+    decomposer_composition: str
+    decomposer_defaulttask: str
 
 @dataclass
 class FeatureConfig:
@@ -160,15 +153,8 @@ class RetrieverConfig:
             search_summary=search_prompts_cfg.get("summary", ""),
             search_summary_long=search_prompts_cfg.get("summary_long", ""),      
             search_evaluation=search_prompts_cfg.get("evaluation", ""),
-            extract_context_to_task=extract_prompts_cfg.get("context_to_task", ""),
-            extract_task_to_question=extract_prompts_cfg.get("task_to_question", ""),
-            extract_question_evaluation=extract_prompts_cfg.get("question_evaluation", ""),
-            extract_answer_evaluation=extract_prompts_cfg.get("answer_evaluation", ""),
-            extract_w_task_q=extract_prompts_cfg.get("fallback_with_task", {}).get("question", ""),
-            extract_w_task_e=extract_prompts_cfg.get("fallback_with_task", {}).get("evaluation", ""),
-            extract_wo_task_t=extract_prompts_cfg.get("fallback_no_task", {}).get("task", ""),
-            extract_wo_task_q=extract_prompts_cfg.get("fallback_no_task", {}).get("question", ""),
-            extract_wo_task_e=extract_prompts_cfg.get("fallback_no_task", {}).get("evaluation", "")
+            decomposer_composition=extract_prompts_cfg.get("decomposition", ""),
+            decomposer_defaulttask=extract_prompts_cfg.get("default_task", "")
         )
 
     def _load_config(self, path):
