@@ -2,10 +2,10 @@ from ctfrag.algorithms.base import RAGAlgorithms, State, RetrieverWrap
 from ctfrag.database import RAGDatabase
 from ctfrag.config import RetrieverConfig
 from ctfrag.backends import LLMs
-from ctfrag.console import console, ConsoleType
+from ctfrag.console import console, ConsoleType, log, LogNode
 from langchain.schema.runnable import RunnablePassthrough
 from langgraph.graph import END, StateGraph
-from ctfrag.utils import MetadataCaptureCallback
+from ctfrag.utils import MetadataCaptureCallback, DocumentDisplayCallback
 
 class SelfRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
@@ -26,15 +26,21 @@ class SelfRAG(RAGAlgorithms):
         state["recursion_depth"] += 1
         console.overlay_print("---RETRIEVE NODE---", ConsoleType.SYSTEM)
         retriever = self.wrap.vector_store.as_retriever()
+        self._log.trajectories.append(LogNode.RETRIEVE.value)
+        self._log.query.append(state["question"])
+        doc_callback = DocumentDisplayCallback()
         rag_chain = (
             {"context": retriever,  "question": RunnablePassthrough()}
             | self.wrap.template
             | self.llm()
         )
-        response = rag_chain.invoke(state["question"])
+        response = rag_chain.invoke(state["question"], config={"callbacks": [doc_callback]})
         token_usages = response.usage_metadata
         self.llm.update_model_cost(token_usages)
         result = response.content
+        source, context = log.parse_documents(doc_callback.documents)
+        self._log.source.append(source)
+        self._log.shortcut.append(context)
         state["context"] = result
         return state
     
@@ -42,21 +48,25 @@ class SelfRAG(RAGAlgorithms):
     def generate_node(self, state: State):
         state["recursion_depth"] += 1
         console.overlay_print("---GENERATE NODE---", ConsoleType.SYSTEM)
+        self._log.trajectories.append(LogNode.GENERATE.value)
         result = self.self_rag_generate(state)
         state["answer"] = result["answer"]
+        self._log.interm_generation.append(result["answer"])
         return state
 
     # Self_rag : grade retrieved documents node
     def grade_documents_node(self, state: State):
         console.overlay_print("---GRADE DOCUMENTS NODE---", ConsoleType.SYSTEM)
+        self._log.trajectories.append(LogNode.GRADE_DOCUMENTS.value)
         question = state["question"]
         documents = state["context"]
-        filtered_docs = self.grade_retrieval(question, documents)
+        filtered_docs, is_relevant = self.grade_retrieval(question, documents)
         state["recursion_depth"] += 1
 
         if not filtered_docs:
             console.overlay_print("---NO RELEVANT DOCUMENTS FOUND---", ConsoleType.SYSTEM)
-            
+        
+        self._log.document_quality.append(is_relevant == "yes")
         state["context"] = filtered_docs
         return state
 
@@ -64,6 +74,7 @@ class SelfRAG(RAGAlgorithms):
     def transform_query_node(self, state: State):
         state["recursion_depth"] += 1
         console.overlay_print("---TRANSFORM QUERY NODE---", ConsoleType.SYSTEM)
+        self._log.trajectories.append(LogNode.REWRITE_QUERY.value)
         question = state["question"]
         rewritten_question = self.rewrite_question(question)
         state["question"] = rewritten_question
@@ -72,6 +83,7 @@ class SelfRAG(RAGAlgorithms):
     # Self_rag : decide to generate or not edge
     def decide_to_generate(self, state: State):
         console.overlay_print("---ASSESS GRADED DOCUMENTS---", ConsoleType.SYSTEM)
+        self._log.trajectories.append(LogNode.DECIDE_GENERATION.value)
         documents = state["context"]
         if not documents:
             console.overlay_print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---", ConsoleType.SYSTEM)
@@ -86,6 +98,7 @@ class SelfRAG(RAGAlgorithms):
     # Self_rag : check for hallucination and whether answers the question edge
     def grade_generation_v_documents_and_question(self, state: State):
         console.overlay_print("---CHECK HALLUCINATIONS---", ConsoleType.SYSTEM)
+        self._log.trajectories.append(LogNode.GRADE_HALLUCINATION.value)
         question = state["question"]
         documents = state["context"] 
         generation = state.get("answer", "") 
@@ -94,21 +107,24 @@ class SelfRAG(RAGAlgorithms):
         token_usages = metadata_callback.usage_metadata
         self.llm.update_model_cost(token_usages)
         grade = score.binary_score
-
+        self._log.no_hallucinations.append(grade == "yes")
         if grade == "yes":
             console.overlay_print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---", ConsoleType.SYSTEM)
             console.overlay_print("---GRADE GENERATION vs QUESTION---", ConsoleType.SYSTEM)
+            self._log.trajectories.append(LogNode.GRADE_ANSWER.value)
             metadata_callback = MetadataCaptureCallback() 
             score = self.answer_grader.invoke({"question": question, "generation": generation}, config={"callbacks": [metadata_callback]})
             token_usages = metadata_callback.usage_metadata
             self.llm.update_model_cost(token_usages)
             grade = score.binary_score
+            self._log.answer_quality.append(grade == "yes")
             if grade == "yes":
                 console.overlay_print("---DECISION: GENERATION ADDRESSES QUESTION---", ConsoleType.SYSTEM)
                 return "useful"
                 
             else:
                 console.overlay_print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---", ConsoleType.SYSTEM)
+                self._log.trajectories.append(LogNode.RETRY.value)
                 if state["recursion_depth"] > self.MAX_RETRIES:
                     console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", ConsoleType.SYSTEM)
                     return "end"
@@ -116,6 +132,7 @@ class SelfRAG(RAGAlgorithms):
                 return "not useful"
         else:
             console.overlay_print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---", ConsoleType.SYSTEM)
+            self._log.trajectories.append(LogNode.RETRY.value)
             if state["recursion_depth"] > self.MAX_RETRIES:
                 console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", ConsoleType.SYSTEM)
                 return "end"

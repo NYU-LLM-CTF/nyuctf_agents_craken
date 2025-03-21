@@ -5,6 +5,18 @@ from contextlib import contextmanager
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import List, Any
+from langchain_core.documents import Document
+
+class LogNode(Enum):
+    RETRIEVE = "RETRIEVE"
+    GENERATE = "GENERATE"
+    GRADE_HALLUCINATION = "GRADE_HALLUCINATION"
+    GRADE_ANSWER = "GRADE_ANSWER"
+    GRADE_DOCUMENTS = "GRADE_DOCUMENTS"
+    REWRITE_QUERY  = "REWRITE_QUERY"
+    DECIDE_GENERATION = "DECIDE_GENERATION"
+    MAX_RETRY = "MAX_RETRY"
+    RETRY = "RETRY"
 
 class ConsoleType(Enum):
     SYSTEM = 5
@@ -15,12 +27,13 @@ class ConsoleType(Enum):
 @dataclass
 class RAGItem:
     index: int = 0
+    collection: str = ""
     trajectories: List[Any] = field(default_factory=list)
     source: List[List[str]] = field(default_factory=list)
     shortcut: List[List[str]] = field(default_factory=list)
-    generation: List[str] = field(default_factory=list)
+    interm_generation: List[str] = field(default_factory=list)
     query: List[str] = field(default_factory=list)
-    hallucinations: List[bool] = field(default_factory=list)
+    no_hallucinations: List[bool] = field(default_factory=list)
     document_quality: List[bool] = field(default_factory=list)
     answer_quality: List[bool] = field(default_factory=list)
     final_answer: str = ""
@@ -103,6 +116,17 @@ class LogConsole:
 
     def update_decompositionlog(self, logs:DecompositionItem):
         self.extract.append(logs)
+
+    def parse_documents(self, documents: List[Document], truncate=500):
+        source = []
+        context = []
+        for document in documents:
+            source.append(document.metadata.get("source", ""))
+            if len(document.page_content) > truncate:
+                context.append(document.page_content[:truncate] + "...[TRUNATED]")
+            else:
+                context.append(document.page_content)
+        return source, context
 
 
 class OverlayConsole:
