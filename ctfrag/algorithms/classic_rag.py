@@ -12,7 +12,7 @@ from langchain.retrievers.contextual_compression import ContextualCompressionRet
 from langchain_community.document_compressors.rankllm_rerank import RankLLMRerank
 from langchain.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain.load import dumps, loads
-from ctfrag.console import console, ConsoleType
+from ctfrag.console import console, ConsoleType, log, LogNode
 from ctfrag.utils import MetadataCaptureCallback, DocumentDisplayCallback
 
 class ClassicRAG(RAGAlgorithms):
@@ -76,7 +76,7 @@ class ClassicRAG(RAGAlgorithms):
             final_docs = [Document(page_content="No relevant documents found.")]
 
         if self.config.feature_config.retrieval_grading:
-            final_docs = self.grade_retrieval(state["question"], final_docs)
+            final_docs, _ = self.grade_retrieval(state["question"], final_docs)
         if self.config.feature_config.decomposition:
             return {"context": final_docs, "answer": final_answer}
         if self.config.feature_config.step_back:
@@ -88,11 +88,19 @@ class ClassicRAG(RAGAlgorithms):
         self._create_vector(collection=collection)
         self._create_template(template_str=template)
         metadata_callback = MetadataCaptureCallback()
+        doc_callback = DocumentDisplayCallback()
+        self._log.trajectories.append(LogNode.RETRIEVE.value)
+        self._log.trajectories.append(LogNode.GENERATE.value)
+        self._log.query.append(query)
         if graph_lc:
-            result = self.graph.invoke({"question": query})
+            result = self.graph.invoke({"question": query}, config={"callbacks": [metadata_callback]})
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
+            source, context = log.parse_documents(result["context"])
+            self._log.source.append(source)
+            self._log.shortcut.append(context)
             return result["answer"]
         else:
-            doc_callback = DocumentDisplayCallback()
             retriever = self.wrap.vector_store.as_retriever()
             rag_chain = (
                 {"context": retriever,  "question": RunnablePassthrough()}
@@ -103,6 +111,9 @@ class ClassicRAG(RAGAlgorithms):
             result = rag_chain.invoke(query, config={"callbacks": [metadata_callback, doc_callback]})
             token_usages = metadata_callback.usage_metadata
             self.llm.update_model_cost(token_usages)
+            source, context = log.parse_documents(doc_callback.documents)
+            self._log.source.append(source)
+            self._log.shortcut.append(context)
             return result
         """ state = {"question": query, "context": [], "answer": ""}
         retrieval_result = self.retrieve(state)

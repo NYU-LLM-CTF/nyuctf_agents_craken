@@ -29,10 +29,12 @@ class RAGAgent:
         
     def do_selfrag(self, query, collection):
         answer = self.self_rag.self_rag_retrieve(query, collection, self.config.prompts.rag_main)["answer"]
+        self.self_rag.flush_log(answer, collection)
         return answer
 
     def do_rag(self, query, collection):
         answer = self.classic_rag.chain_retrieve(query, collection, self.config.prompts.rag_main)
+        self.classic_rag.flush_log(answer, collection)
         return answer
 
     def do_graphrag(self, query):

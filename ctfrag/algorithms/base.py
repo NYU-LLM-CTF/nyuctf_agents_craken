@@ -111,7 +111,7 @@ class RAGAlgorithms:
         )
         self.hallucination_grader = hallucination_prompt | self.llm().with_structured_output(GradeHallucinations)
 
-        # Self_rag/retrieval_grading : grader of retrieved documents for relevent
+    # Self_rag/retrieval_grading : grader of retrieved documents for relevent
     def grade_retrieval(self, question, documents):
         metadata_callback = MetadataCaptureCallback()
         relevant_docs = []
@@ -120,7 +120,13 @@ class RAGAlgorithms:
         self.llm.update_model_cost(token_usages)
         if grading_result.binary_score.lower() == "yes":
             relevant_docs.append(documents)
-        return relevant_docs
+        return relevant_docs, grading_result.binary_score.lower()
+    
+    def flush_log(self, final_answer, collection):
+        self._log.final_answer = final_answer
+        self._log.collection = collection
+        log.update_raglog(self._log)
+        self.init_log()
 
     # Hallucination_grading : grader generated output for hallucination
     def grade_hallucination(self, documents, generation):
