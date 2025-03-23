@@ -11,7 +11,7 @@ class Neo4jDB(BaseVectorDB):
         super().__init__(embeddings=embeddings)
         self.uri = "neo4j://localhost:7687"
         self.user = "neo4j"
-        self.password = "DEMODEMO"
+        self.password = "password"
         self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
 
     @override
