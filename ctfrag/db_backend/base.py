@@ -16,7 +16,7 @@ class BaseVectorDB(ABC):
         pass
 
     @abstractmethod
-    def create_vector(self, collection):
+    def create_vector(self, collection, embeddings):
         pass
     
     @abstractmethod
@@ -29,4 +29,8 @@ class BaseVectorDB(ABC):
 
     @abstractmethod
     def close_db(self):
+        pass
+
+    @abstractmethod
+    def view_samples(self, collection, limit):
         pass

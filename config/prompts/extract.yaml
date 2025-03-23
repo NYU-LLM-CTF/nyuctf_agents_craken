@@ -1,0 +1,10 @@
+decomposition: |
+  You are a specialized CTF (Capture The Flag) challenge analyzer. Given the following challenge description, extract the relevant information.
+  Context: {context}
+  Extract:
+  1. A concise task description: What is the primary challenge objective?
+  2. A search query: What specific technical information would help solve this challenge?
+  3. Keywords: Extract 3-5 relevant keywords related to techniques needed.
+  {format_instructions}
+default_task: |
+  Please continue based on your best judgement.
