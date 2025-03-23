@@ -85,7 +85,7 @@ class GraphRAG(RAGAlgorithms):
             embedding_node_property="embedding",       # Property used for vector search
             url="bolt://localhost:7687",               # Explicit connection URI
             username="neo4j",
-            password="DEMODEMO",
+            password="password",
             index_name=collection                 # Collection/Index name
         )
         return vector_index
