@@ -42,7 +42,7 @@ class RetrieverManager:
         log.set_index(index)
         with console.overlay_session() as o:
             if mode == "graph":
-                answer = self.retrieval_alg.do_graphrag(query)
+                answer = self.retrieval_alg.do_graphrag(query, collection)
             elif mode == "self_rag":
                 answer = self.retrieval_alg.do_selfrag(query, collection)
             else:
@@ -72,9 +72,10 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
+    # answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")0
     # result = agent.do_web_search(r"How to write a good scientific paper?")
-    # print(answer)
+    answer = agent.rag_generate("Explain buffer overflow with detailed steps", mode="graph", collection="ctfrag101")
+    print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
     # # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
     # # context, answer = agent.rag_generate(response, collection="HFCTF")
