@@ -11,45 +11,13 @@ class Neo4jDB(BaseVectorDB):
         super().__init__(embeddings=embeddings)
         self.uri = "neo4j://localhost:7687"
         self.user = "neo4j"
-        self.password = "password"
+        self.password = "DEMODEMO"
         self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
 
     @override
     def insert_document(self, documents: List[Document], collection: str):
-        """Insert entities and relationships into Neo4j."""
-        with self.driver.session(database=collection) as session:
-            for doc in documents:
-                content = doc.page_content
-                
-                # Assuming `content` contains extracted entities and relationships
-                # data = eval(content)  # Convert string to dict
-
-                # Assuming `content` contains extracted entities and relationships as JSON string
-                try:
-                    data = json.loads(content)
-                except json.JSONDecodeError:
-                    print("Invalid JSON format in document.")
-                    continue
-
-                entities = data.get("entities", [])
-                relationships = data.get("relationships", [])
-
-            # Insert entities
-            for entity in entities:
-                query = f"""
-                MERGE (n:{entity['type']} {{name: $name}})
-                """
-                session.run(query, name=entity["name"])
-
-            # Insert relationships
-            for relation in relationships:
-                query = f"""
-                MATCH (a {{name: $source}}), (b {{name: $target}})
-                MERGE (a)-[:{relation['relation']}]->(b)
-                """
-                session.run(query, source=relation["source"], target=relation["target"])
-
-                print(f"✅ Inserted document into collection '{collection}'.")
+        graph_store = Neo4jGraph(url=self.uri, username=self.user, password=self.password, database=collection)
+        graph_store.add_graph_documents(documents, baseEntityLabel=True, include_source=True)
 
     @override
     def delete_collection(self, collection: str):
@@ -68,6 +36,15 @@ class Neo4jDB(BaseVectorDB):
         if documents:
             self.insert_document(documents, collection)
         print(f"✅ Collection '{collection}' created.")
+
+    def index_graph(self, collection: str):
+        """
+        Creates an index on the populated graph tp assist with efficient searches
+        """
+        # self.graph.query(
+        with self.driver.session(database=collection) as session:
+            query = """CREATE FULLTEXT INDEX entity IF NOT EXISTS FOR (e:__Entity__) ON EACH [e.id]"""
+            session.run(query)
 
     # @override
     # def create_vector(self, collection: str):

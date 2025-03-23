@@ -54,7 +54,8 @@ dependencies = [
   "langchain_neo4j",
   "langchain-together",
   "langchain-google-genai",
-  "colorama"
+  "colorama",
+  "langchain_experimental"
 ]
 
 [tool.hatch.build.targets.wheel]
