@@ -1,5 +1,5 @@
 database:
-  storage: 'neo4j'
+  storage: 'milvus'
   config:
     # IVF_FLAT/HNSW
     index_type: "IVF_FLAT"  
