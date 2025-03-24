@@ -1,11 +1,12 @@
 from pydantic import BaseModel, Field
-from ctfrag.console import console, ConsoleType, LogConsole, DecompositionItem
+from ctfrag.console import console, ConsoleType, DecompositionItem, log
 from ctfrag.config import RetrieverConfig
 from langchain.chains import LLMChain
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
 from ctfrag.utils import MetadataCaptureCallback
 import re
+from ctfrag.backends import LLMs
 
 class Decomposition(BaseModel):
     task: str = Field(description="Task description extracted from the context.")
@@ -13,7 +14,7 @@ class Decomposition(BaseModel):
     keywords: str = Field(description="Keywords extracted from the task description. For example, 'how to solve a reverse challenge' goes to 'solve, reverse, challenge'.")
 
 class ContextDecomposer:
-    def __init__(self, llm, config: RetrieverConfig=None):
+    def __init__(self, llm: LLMs, config: RetrieverConfig=None):
         self.llm = llm
         self.config = config
         self.parser = PydanticOutputParser(pydantic_object=Decomposition)
@@ -33,8 +34,13 @@ class ContextDecomposer:
 
     def init_log(self):
         self._log = DecompositionItem()
+
+    def flush_log(self):
+        log.update_decompositionlog(self._log)
+        self.init_log()
     
-    def decompose_task(self, context: str) -> Decomposition:
+    def decompose_task(self, context: str, index=0) -> Decomposition:
+        self._log.index = index
         try:
             metadata_callback = MetadataCaptureCallback()
             output = self.chain.run(context=context, callbacks=[metadata_callback])
@@ -46,6 +52,12 @@ class ContextDecomposer:
             decomposition = self.parser.parse(output)
             if decomposition.task == context or not decomposition.task.strip():
                 raise ValueError("Task same as context")
+            console.overlay_print(f"Task: {decomposition.task}\nQuery: {decomposition.query}\nKeywords: {decomposition.keywords}", ConsoleType.OUTPUT)
+            self._log.context = context
+            self._log.task = decomposition.task
+            self._log.query = decomposition.query
+            self._log.keywords = decomposition.keywords
+            self.flush_log()
             return decomposition
         except Exception as e:          
             return Decomposition(

@@ -3,7 +3,6 @@ from langchain.schema.document import Document
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains.summarize import load_summarize_chain
 from langchain_community.tools import DuckDuckGoSearchResults
-from langchain_community.callbacks import get_openai_callback
 from readability import Document
 from ctfrag.config import RetrieverConfig
 from ctfrag.console import console, ConsoleType, log, WebSearchItem
@@ -18,6 +17,8 @@ from typing import List, Tuple
 from newspaper import Article
 from ctfrag.utils import OverlayCallbackHandler
 from langchain.schema.document import Document as LangchainDocument
+from ctfrag.utils import MetadataCaptureCallback
+from ctfrag.backends import LLMs
 
 class WebSearchResult:
     def __init__(self, content: str, websites: list) -> None:
@@ -25,9 +26,10 @@ class WebSearchResult:
         self.content = content
 
 class WebSearch:
-    def __init__(self, llm, verbose: bool = False, search_engine: str = "hybrid", config:RetrieverConfig=None):
+    def __init__(self, llm: LLMs, verbose: bool = False, search_engine: str = "hybrid", config:RetrieverConfig=None):
         self.verbose = verbose
         self.config = config
+        self._log = self.init_log()
         self.handler = OverlayCallbackHandler(console)
         self.search_engine = search_engine.lower()
         if self.search_engine not in ["google", "duckduckgo", "hybrid"]:
@@ -190,8 +192,11 @@ class WebSearch:
             input_variables=["context", "query"],
             template=self.config.prompts.search_filtering
         )
+        metadata_callback = MetadataCaptureCallback()
         filter_chain = filter_prompt | self.llm().bind(temperature=0.95, top_p=0.7)
-        result = filter_chain.invoke({"context": context, "query": query})
+        result = filter_chain.invoke({"context": context, "query": query}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         if hasattr(result, 'content'):
             result = result.content
         matching_texts = []
@@ -221,9 +226,11 @@ class WebSearch:
             input_variables=["content", "query"],
             template=self.config.prompts.search_summary
         )
-
+        metadata_callback = MetadataCaptureCallback()
         summary_chain = summary_prompt | self.llm().bind(temperature=0.95, top_p=0.7)
-        result = summary_chain.invoke({"content": base_content_info, "query": query})
+        result = summary_chain.invoke({"content": base_content_info, "query": query}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         if hasattr(result, 'content'):
             content = result.content
         else:
@@ -239,8 +246,11 @@ class WebSearch:
             input_variables=["content", "query"],
             template=self.config.prompts.search_evaluation
         )
+        metadata_callback = MetadataCaptureCallback()
         evaluation_chain = evaluation_prompt | self.llm().bind(temperature=0.95, top_p=0.7)
-        result = evaluation_chain.invoke({"content": summary, "query": query})
+        result = evaluation_chain.invoke({"content": summary, "query": query}, config={"callbacks": [metadata_callback]})
+        token_usages = metadata_callback.usage_metadata
+        self.llm.update_model_cost(token_usages)
         if hasattr(result, 'content'):
             result = result.content
         is_usable = 'yes' in result.lower() and 'no' not in result.lower()
@@ -261,7 +271,10 @@ class WebSearch:
                 verbose=False,
                 callbacks=[self.handler]
             )
-            result = chain.invoke({"input_documents": docs})
+            metadata_callback = MetadataCaptureCallback()
+            result = chain.invoke({"input_documents": docs}, config={"callbacks": [metadata_callback]})
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
             if isinstance(result, dict) and "output_text" in result:
                 return result["output_text"]
             elif hasattr(result, 'content'):
@@ -350,6 +363,8 @@ class WebSearch:
             console.overlay_print(error_msg, ConsoleType.ERROR)
             content = error_msg
             
+        self._log.source.append(url)
+        self._log.context.append(content)
         return content
 
     @staticmethod
@@ -397,7 +412,8 @@ class WebSearch:
                 
         return merged_results[:self.max_search_results]
 
-    def search_web(self, query: str) -> WebSearchResult:
+    def search_web(self, query: str, index=0) -> WebSearchResult:
+        self._log.index = index
         if not query:
             raise ValueError("Unable to get the correct user information")
             
@@ -407,8 +423,10 @@ class WebSearch:
                 console.overlay_print(f"Starting web search for query: {query}", ConsoleType.SYSTEM)
                 console.overlay_print("=" * 40, ConsoleType.SYSTEM)
                 console.overlay_print("STEP 1: Extracting keywords from query", ConsoleType.SYSTEM)
-                
-            result = self.keyword_chain.invoke({"query": query})
+            metadata_callback = MetadataCaptureCallback()
+            result = self.keyword_chain.invoke({"query": query}, config={"callbacks": [metadata_callback]})
+            token_usages = metadata_callback.usage_metadata
+            self.llm.update_model_cost(token_usages)
             keywords = self.parser_output(result)
             
             if self.verbose:
@@ -420,6 +438,7 @@ class WebSearch:
             
             if self.search_engine == "google":
                 search_items = self._run_google_search(keywords)
+                self.llm.update_search_cost(1)
             elif self.search_engine == "duckduckgo":
                 search_items = self._run_duckduckgo_search(keywords)
             else:
@@ -489,6 +508,7 @@ class WebSearch:
                             console.overlay_print("STEP 4: Creating final summary", ConsoleType.SYSTEM)
                             
                         final_content = self._final_summary(content_items, query)
+                        self._log.answer = final_content
                         
                         if self.verbose:
                             console.overlay_print("Summary generation complete", ConsoleType.SYSTEM)
@@ -501,9 +521,15 @@ class WebSearch:
                 if self.verbose:
                     console.overlay_print("No search results found", ConsoleType.INFO)
             
+            self.flush_log()
+            # import pdb; pdb.set_trace()
             return WebSearchResult(content=final_content, websites=content_items)
             
         except Exception as e:
             console.overlay_print(f"Error in search_web: {e}", ConsoleType.ERROR)
             console.overlay_print(f"Traceback: {traceback.format_exc()}", ConsoleType.ERROR)
             return WebSearchResult(content="Error occurred during web search.", websites=[])
+        
+    def flush_log(self):
+        log.update_searchlog(self._log)
+        self.init_log()

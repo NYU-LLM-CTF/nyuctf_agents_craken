@@ -30,8 +30,8 @@ class RetrieverManager:
     def enable_retriever(self):
         self.enabled = True
 
-    def summarize_context(self, context):
-        decomposition = self.extractor.decompose_task(context)
+    def summarize_context(self, context, index=0):
+        decomposition = self.extractor.decompose_task(context, index=index)
         return {
             "task": decomposition.task,
             "query": decomposition.query,
@@ -57,9 +57,9 @@ class RetrieverManager:
             import pdb; pdb.set_trace()
             return answer
     
-    def do_web_search(self, query):
+    def do_web_search(self, query, index=0):
         with console.overlay_session() as o:
-            result = self.web_search.search_web(query)
+            result = self.web_search.search_web(query, index)
             console.overlay_print(result.content, ConsoleType.OUTPUT)
             return result.content
 
@@ -73,9 +73,9 @@ if __name__ == "__main__":
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
     # answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")0
-    # result = agent.do_web_search(r"How to write a good scientific paper?")
-    answer = agent.rag_generate("Explain buffer overflow with detailed steps", mode="graph", collection="ctfrag101")
-    print(answer)
+    result = agent.do_web_search(r"How to write a good scientific paper?")
+    # answer = agent.rag_generate("Explain buffer overflow with detailed steps", mode="graph", collection="ctfrag101")
+    print(result)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")
     # # context, answer = agent.rag_generate("Find any writeups for me, give me the database name and divide it into steps", collection="writeups")
     # # context, answer = agent.rag_generate(response, collection="HFCTF")
