@@ -26,6 +26,9 @@ class RetrieverManager:
         self.extractor = ContextDecomposer(self.llm, config=self.config)
         self.history = []
         self.enabled = False
+
+    def quiet_mode(self):
+        console.quiet = True
     
     def enable_retriever(self):
         self.enabled = True
@@ -38,17 +41,17 @@ class RetrieverManager:
             "keywords": decomposition.keywords
         }
 
-    def rag_generate(self, query, collection, mode="chain"):
+    def rag_generate(self, query, mode="chain"):
         with console.overlay_session() as o:
             if mode == "graph":
-                answer = self.retrieval_alg.do_graphrag(query, collection)
+                answer = self.retrieval_alg.do_graphrag(query, self.config.rag_config.collection)
             elif mode == "self_rag":
-                answer = self.retrieval_alg.do_selfrag(query, collection)
+                answer = self.retrieval_alg.do_selfrag(query, self.config.rag_config.collection)
             else:
-                answer = self.retrieval_alg.do_rag(query, collection)
+                answer = self.retrieval_alg.do_rag(query, self.config.rag_config.collection)
             self.history.append({
                 "query": query,
-                "collection": collection,
+                "collection": self.config.rag_config.collection,
                 "answer": answer
             })
             console.overlay_print(f"Retrieval Result: {answer}", ConsoleType.OUTPUT)
