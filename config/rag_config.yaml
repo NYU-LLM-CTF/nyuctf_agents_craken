@@ -35,7 +35,7 @@ retrieval:
     rag: prompts/rag.yaml
     search: prompts/search.yaml
     extract: prompts/extract.yaml
-  collection: "HFCTF"
+  collection: "ctfrag101"
 
 features:
   hallucination_grading: False
@@ -49,3 +49,4 @@ features:
   decomposition: False
   step_back: False
   question_rewriting: False
+  graph: True

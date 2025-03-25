@@ -30,8 +30,8 @@ class RetrieverManager:
     def enable_retriever(self):
         self.enabled = True
 
-    def summarize_context(self, context):
-        decomposition = self.extractor.decompose_task(context)
+    def summarize_context(self, context, index=0):
+        decomposition = self.extractor.decompose_task(context, index=index)
         return {
             "task": decomposition.task,
             "query": decomposition.query,
@@ -42,7 +42,7 @@ class RetrieverManager:
         log.set_index(index)
         with console.overlay_session() as o:
             if mode == "graph":
-                answer = self.retrieval_alg.do_graphrag(query)
+                answer = self.retrieval_alg.do_graphrag(query, collection)
             elif mode == "self_rag":
                 answer = self.retrieval_alg.do_selfrag(query, collection)
             else:
@@ -57,9 +57,9 @@ class RetrieverManager:
             #import pdb; pdb.set_trace()
             return answer
     
-    def do_web_search(self, query):
+    def do_web_search(self, query, index=0):
         with console.overlay_session() as o:
-            result = self.web_search.search_web(query)
+            result = self.web_search.search_web(query, index)
             console.overlay_print(result.content, ConsoleType.OUTPUT)
             return result.content
 

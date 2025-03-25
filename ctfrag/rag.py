@@ -37,8 +37,8 @@ class RAGAgent:
         self.classic_rag.flush_log(answer, collection)
         return answer
 
-    def do_graphrag(self, query):
-        answer = self.graph_rag.graph_retrieve(query)
+    def do_graphrag(self, query, collection):
+        answer = self.graph_rag.graph_retrieve(query, collection)
         return answer
         
     def close_db(self):

@@ -132,10 +132,8 @@ class RAGAlgorithms:
         self.init_log()
 
     # Hallucination_grading : grader generated output for hallucination
-    #Changed
     def grade_hallucination(self, documents, generation):
         metadata_callback = MetadataCaptureCallback()
-        #docs_content = "\n\n".join(doc.page_content for doc in documents)
         grading_result = self.hallucination_grader.invoke({"documents": documents, "generation": generation}, config={"callbacks": [metadata_callback]})
         token_usages = metadata_callback.usage_metadata
         self.llm.update_model_cost(token_usages)
@@ -246,7 +244,7 @@ class RAGAlgorithms:
             q_a_pair = self.format_qa_pair(q, answer)
             q_a_pairs_list.append(q_a_pair) 
 
-        return {"q_a_pairs": "\n---\n".join(q_a_pairs_list)} ,all_contexts
+        return {"q_a_pairs": "\n---\n".join(q_a_pairs_list)}, all_contexts
 
     # Step_back : generate a step back question related to an input question
     def _generate_step_back_query(self, question: str):

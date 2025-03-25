@@ -42,8 +42,8 @@ class RAGItem:
 @dataclass
 class WebSearchItem:
     index: int = 0
-    source: List[List[Any]] = field(default_factory=list)
-    summarization: List[str] = field(default_factory=list)
+    source: List[str] = field(default_factory=list)
+    context: List[str] = field(default_factory=list)
     answer: str = ""
 
 
@@ -112,7 +112,7 @@ class LogConsole:
         self.rag.append(logs)
 
     def update_searchlog(self, logs:WebSearchItem):
-        self.rag.append(logs)
+        self.search.append(logs)
 
     def update_decompositionlog(self, logs:DecompositionItem):
         self.extract.append(logs)

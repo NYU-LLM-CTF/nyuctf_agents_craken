@@ -7,6 +7,7 @@ from langchain.schema.runnable import RunnablePassthrough
 from langgraph.graph import END, StateGraph
 from ctfrag.utils import MetadataCaptureCallback, DocumentDisplayCallback
 from langchain_core.documents import Document
+from ctfrag.algorithms.graphrag import retriever
 
 class SelfRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
