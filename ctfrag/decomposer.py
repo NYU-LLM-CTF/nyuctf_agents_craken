@@ -17,6 +17,7 @@ class ContextDecomposer:
     def __init__(self, llm: LLMs, config: RetrieverConfig=None):
         self.llm = llm
         self.config = config
+        self.index = 0
         self.parser = PydanticOutputParser(pydantic_object=Decomposition)
         self.prompt = PromptTemplate(
             template=self.config.prompts.decomposer_composition,
@@ -39,8 +40,9 @@ class ContextDecomposer:
         log.update_decompositionlog(self._log)
         self.init_log()
     
-    def decompose_task(self, context: str, index=0) -> Decomposition:
-        self._log.index = index
+    def decompose_task(self, context: str) -> Decomposition:
+        self._log.index = self.index
+        self.index += 1
         try:
             metadata_callback = MetadataCaptureCallback()
             output = self.chain.run(context=context, callbacks=[metadata_callback])

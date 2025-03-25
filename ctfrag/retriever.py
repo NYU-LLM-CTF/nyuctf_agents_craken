@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 class RetrieverManager:
     def __init__(self, api_key=None, config: RetrieverConfig={}) -> None:
         self.config = config
-        self.api_key = api_key
+        self.api_key = load_api_keys(api_key)
         self.model = self.config.agent_config.model_name
         self.llm = LLMs(model=self.model, config={"temperature": self.config.agent_config.model_temperature})
         self.embeddings = EmbeddingModel(self.config.db_config.embeddings)()
@@ -30,16 +30,15 @@ class RetrieverManager:
     def enable_retriever(self):
         self.enabled = True
 
-    def summarize_context(self, context, index=0):
-        decomposition = self.extractor.decompose_task(context, index=index)
+    def summarize_context(self, context):
+        decomposition = self.extractor.decompose_task(context)
         return {
             "task": decomposition.task,
             "query": decomposition.query,
             "keywords": decomposition.keywords
         }
 
-    def rag_generate(self, query, collection, mode="chain", index=0):
-        log.set_index(index)
+    def rag_generate(self, query, collection, mode="chain"):
         with console.overlay_session() as o:
             if mode == "graph":
                 answer = self.retrieval_alg.do_graphrag(query, collection)
@@ -54,14 +53,22 @@ class RetrieverManager:
             })
             console.overlay_print(f"Retrieval Result: {answer}", ConsoleType.OUTPUT)
             print(f"Cost: {round(self.llm.get_cost(), 2)}")
-            import pdb; pdb.set_trace()
             return answer
+        
+    def get_cost(self):
+        return self.llm.get_cost()
     
-    def do_web_search(self, query, index=0):
+    def do_web_search(self, query):
         with console.overlay_session() as o:
-            result = self.web_search.search_web(query, index)
+            result = self.web_search.search_web(query)
             console.overlay_print(result.content, ConsoleType.OUTPUT)
             return result.content
+        
+    def init_log(self, progress):
+        console.set_progress(progress)
+        
+    def append_log(self):
+        return log.get_retriever_logs()
 
     
 if __name__ == "__main__":
