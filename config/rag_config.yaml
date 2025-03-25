@@ -49,3 +49,4 @@ features:
   decomposition: False
   step_back: False
   question_rewriting: False
+  graph: True

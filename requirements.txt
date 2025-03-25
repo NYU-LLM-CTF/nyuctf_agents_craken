@@ -28,3 +28,4 @@ chromadb
 pymupdf
 unstructured
 pdfminer
+colorama
