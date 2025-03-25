@@ -44,6 +44,7 @@ class RAGAlgorithms:
         self.config = config
         self.llm = llm
         self.wrap = wrap
+        self.index = 0
         self.database = database
         self.embeddings = embeddings
         self._init_retrieval_grader()
@@ -51,6 +52,10 @@ class RAGAlgorithms:
         self._init_answer_grader()
         self._init_question_rewriter()
         self.init_log()
+
+    def update_index(self):
+        self._log.index = self.index
+        self.index += 1
 
     def init_log(self):
         self._log = RAGItem()

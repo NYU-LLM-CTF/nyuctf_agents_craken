@@ -6,6 +6,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import List, Any
 from langchain_core.documents import Document
+from rich.status import Status
 
 class LogNode(Enum):
     RETRIEVE = "RETRIEVE"
@@ -97,16 +98,6 @@ class LogConsole:
         self.search = []
         self.rag = []
         self.extract = []
-        self.index = 0
-        
-    def dump(self):
-        pass
-
-    def set_index(self, index):
-        self.index = index
-
-    def get_current_index(self):
-        return self.index
     
     def update_raglog(self, logs:RAGItem):
         self.rag.append(logs)
@@ -127,6 +118,16 @@ class LogConsole:
             else:
                 context.append(document.page_content)
         return source, context
+    
+    def get_retriever_logs(self):
+        extract_dicts = [vars(item) for item in self.extract]
+        rag_dicts = [vars(item) for item in self.rag]
+        search_dicts = [vars(item) for item in self.search]
+        return {
+            "decomposition": extract_dicts,
+            "rag": rag_dicts,
+            "web_search": search_dicts
+        }
 
 
 class OverlayConsole:
@@ -139,6 +140,8 @@ class OverlayConsole:
         self.update_thread = None
         self.debug = debug
         self.quiet = quiet
+
+        self.progress: Status = None
         
         # Dimensions and position
         self.overlay_start_row = 0
@@ -149,10 +152,16 @@ class OverlayConsole:
         # Content management
         self.content_lines = []
         self.max_lines = 0
+
+    def set_progress(self, progress):
+        self.progress = progress
         
     def overlay_start(self, start_row=None, end_row=None, width=None):
         if self.debug or self.quiet or self.overlay_active:
             return
+        
+        if self.progress:
+            self.progress.stop()
             
         def init_curses():
             self.stdscr = curses.initscr()
@@ -202,7 +211,9 @@ class OverlayConsole:
     def overlay_end(self):
         if not self.overlay_active or self.debug or self.quiet:
             return
-            
+
+        if self.progress:
+            self.progress.start()
         self.stop_event.set()
         if self.update_thread:
             self.update_thread.join(timeout=1.0)
@@ -285,8 +296,8 @@ class OverlayConsole:
                                 self.overlay_window.addstr(i + 1, 2, display_text, color_attr)
                             except:
                                 pass
-                        
-                        self.overlay_window.box()
+                        self.overlay_window.border('|', '|', '-', '-', '+', '+', '+', '+')
+                        # self.overlay_window.box()
                         self.overlay_window.refresh()
             except Exception:
                 pass
@@ -301,5 +312,5 @@ class OverlayConsole:
         finally:
             self.overlay_end()
 
-console = OverlayConsole(debug=True, quiet=False)
+console = OverlayConsole(debug=False, quiet=False)
 log = LogConsole()

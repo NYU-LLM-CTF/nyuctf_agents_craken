@@ -35,6 +35,7 @@ class WebSearch:
         if self.search_engine not in ["google", "duckduckgo", "hybrid"]:
             console.overlay_print(f"Invalid search engine option: {search_engine}. Defaulting to hybrid.", ConsoleType.ERROR)
             self.search_engine = "hybrid"
+        self.index = 0
             
         self.llm = llm
 
@@ -412,8 +413,9 @@ class WebSearch:
                 
         return merged_results[:self.max_search_results]
 
-    def search_web(self, query: str, index=0) -> WebSearchResult:
-        self._log.index = index
+    def search_web(self, query: str) -> WebSearchResult:
+        self._log.index = self.index
+        self.index += 1
         if not query:
             raise ValueError("Unable to get the correct user information")
             
