@@ -13,6 +13,7 @@ class RAGAgent:
         self.llm = llm
         self.embeddings = embeddings
         self.config = config
+        self.index = 0
         self.database = RAGDatabase(self._setup_db(self.config.db_config.storage), config=config)
         self.wrap = RetrieverWrap()
         self.classic_rag = ClassicRAG(config=self.config, llm=self.llm, wrap=self.wrap, database=self.database, embeddings=self.embeddings)
@@ -28,16 +29,19 @@ class RAGAgent:
             return MilvusDB(embeddings=self.embeddings)
         
     def do_selfrag(self, query, collection):
+        self.self_rag.update_index()
         answer = self.self_rag.self_rag_retrieve(query, collection, self.config.prompts.rag_main)["answer"]
         self.self_rag.flush_log(answer, collection)
         return answer
 
     def do_rag(self, query, collection):
+        self.self_rag.update_index()
         answer = self.classic_rag.chain_retrieve(query, collection, self.config.prompts.rag_main)
         self.classic_rag.flush_log(answer, collection)
         return answer
 
     def do_graphrag(self, query, collection):
+        self.self_rag.update_index()
         answer = self.graph_rag.graph_retrieve(query, collection)
         return answer
         

@@ -35,7 +35,7 @@ retrieval:
     rag: prompts/rag.yaml
     search: prompts/search.yaml
     extract: prompts/extract.yaml
-  collection: "ctfrag101"
+  collection: "writeups"
 
 features:
   hallucination_grading: False
