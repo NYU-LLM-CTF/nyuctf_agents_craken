@@ -54,7 +54,7 @@ class RetrieverManager:
             })
             console.overlay_print(f"Retrieval Result: {answer}", ConsoleType.OUTPUT)
             print(f"Cost: {round(self.llm.get_cost(), 2)}")
-            import pdb; pdb.set_trace()
+            #import pdb; pdb.set_trace()
             return answer
     
     def do_web_search(self, query):
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    answer = agent.rag_generate("how to reverse", mode="self_rag", collection="writeups")
+    answer = agent.rag_generate("how to reverse", mode="self_rag", collection="WRITEUPS")
     # result = agent.do_web_search(r"How to write a good scientific paper?")
     # print(answer)
     # answer = agent.rag_generate("How to reverser?", mode="rag", collection="default")

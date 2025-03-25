@@ -6,6 +6,7 @@ from ctfrag.console import console, ConsoleType, log, LogNode
 from langchain.schema.runnable import RunnablePassthrough
 from langgraph.graph import END, StateGraph
 from ctfrag.utils import MetadataCaptureCallback, DocumentDisplayCallback
+from langchain_core.documents import Document
 
 class SelfRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
@@ -22,26 +23,26 @@ class SelfRAG(RAGAlgorithms):
         return result
 
     # Self_rag : retrieve node
+    # Changed
     def retrieve_node(self, state: State):
         state["recursion_depth"] += 1
         console.overlay_print("---RETRIEVE NODE---", ConsoleType.SYSTEM)
-        retriever = self.wrap.vector_store.as_retriever()
         self._log.trajectories.append(LogNode.RETRIEVE.value)
         self._log.query.append(state["question"])
-        doc_callback = DocumentDisplayCallback()
-        rag_chain = (
-            {"context": retriever,  "question": RunnablePassthrough()}
-            | self.wrap.template
-            | self.llm()
-        )
-        response = rag_chain.invoke(state["question"], config={"callbacks": [doc_callback]})
-        token_usages = response.usage_metadata
+        #doc_callback = DocumentDisplayCallback()
+        state = {"question": state["question"], "context": [], "answer": ""}
+        retrieval_result = self.retrieve(state)
+
+        response = retrieval_result.get("context", [])
+        answer = retrieval_result.get("answer", "")
+        """ token_usages = response.usage_metadata
         self.llm.update_model_cost(token_usages)
         result = response.content
         source, context = log.parse_documents(doc_callback.documents)
         self._log.source.append(source)
-        self._log.shortcut.append(context)
-        state["context"] = result
+        self._log.shortcut.append(context) """
+        state["context"] = response
+        #state["answer"] = answer
         return state
     
     # Self_rag : generate node
@@ -49,7 +50,7 @@ class SelfRAG(RAGAlgorithms):
         state["recursion_depth"] += 1
         console.overlay_print("---GENERATE NODE---", ConsoleType.SYSTEM)
         self._log.trajectories.append(LogNode.GENERATE.value)
-        result = self.self_rag_generate(state)
+        result = self.generate(state)
         state["answer"] = result["answer"]
         self._log.interm_generation.append(result["answer"])
         return state
@@ -203,11 +204,11 @@ class SelfRAG(RAGAlgorithms):
             return {"error": "The workflow could not generate a valid response."}
         
     
-    def self_rag_generate(self, state: State):
+    """ def self_rag_generate(self, state: State):
         default_answer = "The response contains no verified factual content."
         default_suggestion = "Consider refining your query for more accurate results."
         docs_content = "\n\n".join(doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in state["context"])
-    
+
         messages = self.wrap.template.invoke({"question": state["question"], "context": docs_content})
         response = self.llm().invoke(messages)
         token_usages = response.usage_metadata
@@ -227,4 +228,4 @@ class SelfRAG(RAGAlgorithms):
                     "answer": default_answer,
                     "suggestion": default_suggestion
                 }
-        return {"answer": response.content}
+        return {"answer": response.content} """
