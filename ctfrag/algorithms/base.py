@@ -133,6 +133,8 @@ class RAGAlgorithms:
     def flush_log(self, final_answer, collection):
         self._log.final_answer = final_answer
         self._log.collection = collection
+        self._log.database = self.config.db_config.storage
+        self._log.rag_algorithm = self.config.rag_config.algorithm
         log.update_raglog(self._log)
         self.init_log()
 

@@ -41,11 +41,11 @@ class RetrieverManager:
             "keywords": decomposition.keywords
         }
 
-    def rag_generate(self, query, mode="chain"):
+    def rag_generate(self, query):
         with console.overlay_session() as o:
-            if mode == "graph":
+            if self.config.rag_config.algorithm == "graph":
                 answer = self.retrieval_alg.do_graphrag(query, self.config.rag_config.collection)
-            elif mode == "self_rag":
+            elif self.config.rag_config.algorithm == "self_rag":
                 answer = self.retrieval_alg.do_selfrag(query, self.config.rag_config.collection)
             else:
                 answer = self.retrieval_alg.do_rag(query, self.config.rag_config.collection)
@@ -55,7 +55,7 @@ class RetrieverManager:
                 "answer": answer
             })
             console.overlay_print(f"Retrieval Result: {answer}", ConsoleType.OUTPUT)
-            print(f"Cost: {round(self.llm.get_cost(), 2)}")
+            # print(f"Cost: {round(self.llm.get_cost(), 2)}")
             return answer
         
     def get_cost(self):
@@ -71,7 +71,7 @@ class RetrieverManager:
         console.set_progress(progress)
         
     def append_log(self):
-        return log.get_retriever_logs()
+        return log.get_retriever_logs(self.config)
 
     
 if __name__ == "__main__":
