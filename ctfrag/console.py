@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import List, Any
 from langchain_core.documents import Document
 from rich.status import Status
+from ctfrag.config import RetrieverConfig
 
 class LogNode(Enum):
     RETRIEVE = "RETRIEVE"
@@ -26,8 +27,26 @@ class ConsoleType(Enum):
     OUTPUT = 2
 
 @dataclass
+class ConfigItem:
+    model: str = ""
+    hallucination_grading: bool = False
+    answer_grading: bool = False
+    retrieval_grading: bool = False
+    search_params: bool = False
+    rerank: bool = False
+    compressor: bool = False
+    multi_query: bool = False
+    rag_fusion: bool = False
+    decomposition: bool = False
+    step_back: bool = False
+    question_rewriting: bool = False
+    graph: bool = True
+
+@dataclass
 class RAGItem:
     index: int = 0
+    database: str = ""
+    rag_algorithm: str = ""
     collection: str = ""
     trajectories: List[Any] = field(default_factory=list)
     source: List[List[str]] = field(default_factory=list)
@@ -98,6 +117,21 @@ class LogConsole:
         self.search = []
         self.rag = []
         self.extract = []
+
+    def parse_config(self, config: RetrieverConfig):
+        return ConfigItem(
+            model=config.agent_config.model_name,
+            hallucination_grading=config.feature_config.hallucination_grading,
+            answer_grading=config.feature_config.answer_grading,
+            retrieval_grading=config.feature_config.retrieval_grading,
+            rerank=config.feature_config.rerank,
+            compressor=config.feature_config.compressor,
+            multi_query=config.feature_config.multi_query,
+            rag_fusion=config.feature_config.rag_fusion,
+            decomposition=config.feature_config.decomposition,
+            step_back=config.feature_config.step_back,
+            question_rewriting=config.feature_config.question_rewriting
+        )
     
     def update_raglog(self, logs:RAGItem):
         self.rag.append(logs)
@@ -119,11 +153,13 @@ class LogConsole:
                 context.append(document.page_content)
         return source, context
     
-    def get_retriever_logs(self):
+    def get_retriever_logs(self, config):
         extract_dicts = [vars(item) for item in self.extract]
         rag_dicts = [vars(item) for item in self.rag]
         search_dicts = [vars(item) for item in self.search]
+        config_dict = vars(self.parse_config(config=config))
         return {
+            "config": config_dict,
             "decomposition": extract_dicts,
             "rag": rag_dicts,
             "web_search": search_dicts

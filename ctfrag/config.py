@@ -16,6 +16,7 @@ class AgentConfig:
 
 @dataclass
 class RAGConfig:
+    algorithm: str
     reranker_type: str
     reranker_model: str
     reranker_top_n: int
@@ -94,6 +95,7 @@ class RetrieverConfig:
             model_temperature=self.config_yaml.get("agent", {}).get("model", {}).get("temperature", 0)
         )
         self.rag_config = RAGConfig(
+            algorithm=self.config_yaml.get("retrieval", {}).get("algorithm", "self_rag"),
             reranker_type=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("type", "RankLLMRerank"),
             reranker_model=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("model", "gpt-4o-mini-2024-07-18"),
             reranker_top_n=self.config_yaml.get("retrieval", {}).get("reranker", {}).get("top_n", 3),

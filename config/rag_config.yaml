@@ -13,6 +13,7 @@ agent:
     temperature: 1
 
 retrieval:
+  algorithm: "self_rag"
   reranker:
     type: "RankLLMRerank"
     model: "gpt-4o-2024-11-20"
