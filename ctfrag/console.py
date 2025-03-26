@@ -120,8 +120,8 @@ class LogConsole:
 
     def parse_config(self, config: RetrieverConfig):
         return ConfigItem(
-            model=config.rag_config.model,
-            hallucination_grading=config.rag_config.hallucination_grading,
+            model=config.agent_config.model_name,
+            hallucination_grading=config.feature_config.hallucination_grading,
             answer_grading=config.feature_config.answer_grading,
             retrieval_grading=config.feature_config.retrieval_grading,
             rerank=config.feature_config.rerank,
@@ -130,8 +130,7 @@ class LogConsole:
             rag_fusion=config.feature_config.rag_fusion,
             decomposition=config.feature_config.decomposition,
             step_back=config.feature_config.step_back,
-            question_rewriting=config.feature_config.question_rewriting,
-            graph=config.feature_config.graph
+            question_rewriting=config.feature_config.question_rewriting
         )
     
     def update_raglog(self, logs:RAGItem):
