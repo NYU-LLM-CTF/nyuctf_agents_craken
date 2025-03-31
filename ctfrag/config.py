@@ -67,6 +67,8 @@ class FeatureConfig:
     hallucination_grading: bool
     answer_grading: bool
     question_rewriting: bool
+    graph: bool
+    force_output: bool
 
 DEFAULT_TEMPATE = """
 You are an assistant for question-answering tasks.
@@ -124,7 +126,9 @@ class RetrieverConfig:
             retrieval_grading=self.config_yaml.get("features", {}).get("retrieval_grading", False),
             hallucination_grading=self.config_yaml.get("features", {}).get("hallucination_grading", False),
             answer_grading=self.config_yaml.get("features", {}).get("answer_grading", False),
-            question_rewriting=self.config_yaml.get("features", {}).get("question_rewriting", False)
+            question_rewriting=self.config_yaml.get("features", {}).get("question_rewriting", False),
+            graph=self.config_yaml.get("features", {}).get("graph", False),
+            force_output=self.config_yaml.get("features", {}).get("force_output", False)
         )
         self.load_prompts()
     

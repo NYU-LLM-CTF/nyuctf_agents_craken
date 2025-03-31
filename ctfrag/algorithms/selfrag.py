@@ -89,8 +89,12 @@ class SelfRAG(RAGAlgorithms):
         if not documents:
             console.overlay_print("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORM QUERY---", ConsoleType.SYSTEM)
             if state["recursion_depth"] > self.MAX_RETRIES:
-                console.overlay_print("---MAX RECURSION DEPTH REACHED. Stopping workflow.---", ConsoleType.SYSTEM)
-                return "end"     
+                if self.config.feature_config.force_output:
+                    console.overlay_print("---MAX RECURSION DEPTH REACHED. Force output.---", ConsoleType.SYSTEM)
+                    return "generate"
+                else:
+                    console.overlay_print("---MAX RECURSION DEPTH REACHED. Stopping workflow.---", ConsoleType.SYSTEM)
+                    return "end"     
             return "transform_query"
         else:
             console.overlay_print("---DECISION: GENERATE---", ConsoleType.SYSTEM)
@@ -127,16 +131,24 @@ class SelfRAG(RAGAlgorithms):
                 console.overlay_print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---", ConsoleType.SYSTEM)
                 self._log.trajectories.append(LogNode.RETRY.value)
                 if state["recursion_depth"] > self.MAX_RETRIES:
-                    console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", ConsoleType.SYSTEM)
-                    return "end"
+                    if self.config.feature_config.force_output:
+                        console.overlay_print("---MAX RECURSION DEPTH REACHED. Force output.---", ConsoleType.SYSTEM)
+                        return "useful"
+                    else:
+                        console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", ConsoleType.SYSTEM)
+                        return "end"
                 
                 return "not useful"
         else:
             console.overlay_print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---", ConsoleType.SYSTEM)
             self._log.trajectories.append(LogNode.RETRY.value)
             if state["recursion_depth"] > self.MAX_RETRIES:
-                console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", ConsoleType.SYSTEM)
-                return "end"
+                if self.config.feature_config.force_output:
+                    console.overlay_print("---MAX RECURSION DEPTH REACHED. Force output.---", ConsoleType.SYSTEM)
+                    return "useful"
+                else:
+                    console.overlay_print("---MAX RETRIES REACHED. STOPPING RECURSION---", ConsoleType.SYSTEM)
+                    return "end"
             return "not supported"
 
     # Self_rag : build self_rag graph
