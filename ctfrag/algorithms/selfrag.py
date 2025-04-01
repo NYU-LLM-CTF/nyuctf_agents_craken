@@ -1,4 +1,5 @@
 from ctfrag.algorithms.base import RAGAlgorithms, State, RetrieverWrap
+from ctfrag.algorithms.graphrag import GraphRAG
 from ctfrag.database import RAGDatabase
 from ctfrag.config import RetrieverConfig
 from ctfrag.backends import LLMs
@@ -13,6 +14,7 @@ class SelfRAG(RAGAlgorithms):
         super().__init__(config, llm, wrap, database, embeddings)
         self.MAX_RETRIES = 3
         self.wrap = wrap
+        self.graph_rag = GraphRAG(config, llm, wrap, database, embeddings)
 
     def self_rag_retrieve(self, query, collection, template):
         self._create_vector(collection=collection)
@@ -31,10 +33,13 @@ class SelfRAG(RAGAlgorithms):
         self._log.query.append(state["question"])
         #doc_callback = DocumentDisplayCallback()
         state = {"question": state["question"], "context": [], "answer": ""}
-        retrieval_result = self.retrieve(state)
+        if self.config.feature_config.graph:
+            response = self.graph_rag.retriever(question=state["question"], collection="neo4j")
+        else:
+            retrieval_result = self.retrieve(state)
 
-        response = retrieval_result.get("context", [])
-        answer = retrieval_result.get("answer", "")
+            response = retrieval_result.get("context", [])
+            answer = retrieval_result.get("answer", "")
         """ token_usages = response.usage_metadata
         self.llm.update_model_cost(token_usages)
         result = response.content

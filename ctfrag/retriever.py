@@ -82,7 +82,7 @@ if __name__ == "__main__":
     agent = RetrieverManager(config=RetrieverConfig(config_path=args.config))
     # # response = agent.summarize_context(info=TEST_CONTEXT)
     # # print(response)
-    result = agent.rag_generate("how to reverse")
+    result = agent.rag_generate("Explain buffer overflow with detailed steps")
     #result = agent.do_web_search(r"How to write a good scientific paper?")
     # answer = agent.rag_generate("Explain buffer overflow with detailed steps", mode="graph", collection="ctfrag101")
     print(result)
