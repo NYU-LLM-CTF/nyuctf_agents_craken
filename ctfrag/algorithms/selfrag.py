@@ -34,7 +34,7 @@ class SelfRAG(RAGAlgorithms):
         #doc_callback = DocumentDisplayCallback()
         state = {"question": state["question"], "context": [], "answer": ""}
         if self.config.feature_config.graph:
-            response = self.graph_rag.retriever(question=state["question"], collection="neo4j")
+            response = self.graph_rag.retriever(question=state["question"], collection=self.config.rag_config.collection)
         else:
             retrieval_result = self.retrieve(state)
 
