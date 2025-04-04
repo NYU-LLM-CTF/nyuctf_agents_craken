@@ -25,13 +25,12 @@ class SelfRAG(RAGAlgorithms):
         return result
 
     # Self_rag : retrieve node
-    # Changed
     def retrieve_node(self, state: State):
         state["recursion_depth"] += 1
         console.overlay_print("---RETRIEVE NODE---", ConsoleType.SYSTEM)
         self._log.trajectories.append(LogNode.RETRIEVE.value)
         self._log.query.append(state["question"])
-        #doc_callback = DocumentDisplayCallback()
+        doc_callback = DocumentDisplayCallback()
         state = {"question": state["question"], "context": [], "answer": ""}
         if self.config.feature_config.graph:
             response = self.graph_rag.retriever(question=state["question"], collection=self.config.rag_config.collection)
@@ -40,12 +39,10 @@ class SelfRAG(RAGAlgorithms):
 
             response = retrieval_result.get("context", [])
             answer = retrieval_result.get("answer", "")
-        """ token_usages = response.usage_metadata
-        self.llm.update_model_cost(token_usages)
-        result = response.content
+        
         source, context = log.parse_documents(doc_callback.documents)
         self._log.source.append(source)
-        self._log.shortcut.append(context) """
+        self._log.shortcut.append(context)
         state["context"] = response
         #state["answer"] = answer
         return state
