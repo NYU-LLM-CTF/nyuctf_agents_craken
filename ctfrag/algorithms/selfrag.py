@@ -30,17 +30,15 @@ class SelfRAG(RAGAlgorithms):
         console.overlay_print("---RETRIEVE NODE---", ConsoleType.SYSTEM)
         self._log.trajectories.append(LogNode.RETRIEVE.value)
         self._log.query.append(state["question"])
-        doc_callback = DocumentDisplayCallback()
         state = {"question": state["question"], "context": [], "answer": ""}
         if self.config.feature_config.graph:
             response = self.graph_rag.retriever(question=state["question"], collection=self.config.rag_config.collection)
         else:
             retrieval_result = self.retrieve(state)
-
             response = retrieval_result.get("context", [])
             answer = retrieval_result.get("answer", "")
         
-        source, context = log.parse_documents(doc_callback.documents)
+        source, context = log.parse_documents(response)
         self._log.source.append(source)
         self._log.shortcut.append(context)
         state["context"] = response
