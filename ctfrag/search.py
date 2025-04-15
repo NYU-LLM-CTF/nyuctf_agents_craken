@@ -14,7 +14,7 @@ import traceback
 from bs4 import BeautifulSoup
 import os
 from typing import List, Tuple
-from newspaper import Article
+# from newspaper import Article
 from ctfrag.utils import OverlayCallbackHandler
 from langchain.schema.document import Document as LangchainDocument
 from ctfrag.utils import MetadataCaptureCallback
@@ -301,11 +301,12 @@ class WebSearch:
                 
             html_text = response.text
             if self.parser == "newspaper":
-                article = Article(url)
-                article.download()
-                article.parse()
-                article.nlp()
-                cleaned_content = article.text + "\n\n" + article.summary
+                cleaned_content = self._remove_html_and_js(html_text)
+                # article = Article(url)
+                # article.download()
+                # article.parse()
+                # article.nlp()
+                # cleaned_content = article.text + "\n\n" + article.summary
             elif self.parser == "readability":
                 doc = Document(response.content)
                 cleaned_content = doc.content() + "\n\n" + doc.summary()
@@ -327,11 +328,12 @@ class WebSearch:
                         sub_response = requests.get(url=item_url, headers=self.headers, timeout=10)
                         if sub_response.status_code == 200:
                             if self.parser == "newspaper":
-                                article = Article(url)
-                                article.download()
-                                article.parse()
-                                article.nlp()
-                                sub_content = article.text + "\n\n" + article.summary
+                                sub_content = self._remove_html_and_js(sub_response.text)
+                                # article = Article(url)
+                                # article.download()
+                                # article.parse()
+                                # article.nlp()
+                                # sub_content = article.text + "\n\n" + article.summary
                             elif self.parser == "readability":
                                 doc = Document(response.content)
                                 sub_content = doc.content() + "\n\n" + doc.summary()
