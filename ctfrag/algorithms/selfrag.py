@@ -8,6 +8,7 @@ from langchain.schema.runnable import RunnablePassthrough
 from langgraph.graph import END, StateGraph
 from ctfrag.utils import MetadataCaptureCallback, DocumentDisplayCallback
 from langchain_core.documents import Document
+import re
 
 class SelfRAG(RAGAlgorithms):
     def __init__(self, config: RetrieverConfig, llm: LLMs, wrap: RetrieverWrap, database: RAGDatabase, embeddings):
@@ -38,7 +39,13 @@ class SelfRAG(RAGAlgorithms):
             response = retrieval_result.get("context", [])
             answer = retrieval_result.get("answer", "")
         
-        source, context = log.parse_documents(response)
+        if self.config.feature_config.graph:
+            match = re.search(r"Unstructured data:\s*(.+)", response, re.DOTALL)
+            if match:
+                unstructured_part = match.group(1).strip()
+            source, context = log.parse_documents(unstructured_part)
+        else:
+            source, context = log.parse_documents(response)
         self._log.source.append(source)
         self._log.shortcut.append(context)
         state["context"] = response
