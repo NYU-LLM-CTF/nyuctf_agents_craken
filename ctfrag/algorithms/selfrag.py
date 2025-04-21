@@ -33,16 +33,16 @@ class SelfRAG(RAGAlgorithms):
         self._log.query.append(state["question"])
         state = {"question": state["question"], "context": [], "answer": ""}
         if self.config.feature_config.graph:
-            response = self.graph_rag.retriever(question=state["question"], collection=self.config.rag_config.collection)
+            response, unstructured_part = self.graph_rag.retriever(question=state["question"], collection=self.config.rag_config.collection)
         else:
             retrieval_result = self.retrieve(state)
             response = retrieval_result.get("context", [])
             answer = retrieval_result.get("answer", "")
         
         if self.config.feature_config.graph:
-            match = re.search(r"Unstructured data:\s*(.+)", response, re.DOTALL)
+            """ match = re.search(r"Unstructured data:\s*(.+)", response, re.DOTALL)
             if match:
-                unstructured_part = match.group(1).strip()
+                unstructured_part = match.group(1).strip() """
             source, context = log.parse_documents(unstructured_part)
         else:
             source, context = log.parse_documents(response)
