@@ -99,7 +99,7 @@ class GraphRAG(RAGAlgorithms):
             Unstructured data:
             {"#Document ". join(unstructured_data)}
         """
-        return final_data
+        return final_data, unstructured_data
     
     def create_search_query(self, chat_history: list, question: str) -> str:
         search_query = ChatPromptTemplate.from_messages([
@@ -141,7 +141,7 @@ class GraphRAG(RAGAlgorithms):
         chain = (
             RunnableParallel(
                 {
-                    "context": lambda x: self.retriever(query, collection),
+                    "context": lambda x: self.retriever(query, collection)[0],
                     "question": RunnablePassthrough(),
                 }
             )
