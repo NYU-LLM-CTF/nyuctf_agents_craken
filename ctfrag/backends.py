@@ -49,6 +49,11 @@ class LLMBackend:
 class OpenAIBackend(LLMBackend):
     NAME = "openai"
     MODELS = {
+        "gpt-4.1-2025-04-14": {
+            "max_context": 1000000,
+            "cost_per_input_token": 2e-06,
+            "cost_per_output_token": 8e-06
+        },
         "gpt-4o-2024-11-20": {
             "max_context": 128000,
             "cost_per_input_token": 2.5e-06,
