@@ -136,12 +136,19 @@ class AnthropicBackend(LLMBackend):
             "max_context": 200000,
             "cost_per_input_token": 0.8e-06,
             "cost_per_output_token": 4e-06
+        },
+        "claude-3-7-sonnet-20250219": {
+            "max_context": 200000,
+            "cost_per_input_token": 3e-06,
+            "cost_per_output_token": 15e-06
         }
     }
     def __init__(self, model, config: dict):
         super().__init__(model, config)
         self.llm = ChatAnthropic(model=model, 
-                                temperature=self.config["temperature"])
+                                temperature=self.config["temperature"], 
+                                thinking={
+                                    "type": "disabled"})
 
 class GeminiBackend(LLMBackend):
     NAME = "gemini"
