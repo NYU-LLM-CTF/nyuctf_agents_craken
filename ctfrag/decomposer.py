@@ -55,16 +55,19 @@ class ContextDecomposer:
             # if json_match:
             #     output = json_match.group(1)
             # import pdb; pdb.set_trace()
-            decomposition = self.parser.parse(json_data)
-            if decomposition.task == context or not decomposition.task.strip():
-                raise ValueError("Task same as context")
-            console.overlay_print(f"Task: {decomposition.task}\nQuery: {decomposition.query}\nKeywords: {decomposition.keywords}", ConsoleType.OUTPUT)
+            # decomposition = self.parser.parse(json_data)
+            # if decomposition.task == context or not decomposition.task.strip():
+            #     raise ValueError("Task same as context")
+            task = json_data["task"]
+            query = json_data["query"]
+            keywords = json_data["keywords"]
+            console.overlay_print(f"Task: {task}\nQuery: {query}\nKeywords: {keywords}", ConsoleType.OUTPUT)
             self._log.context = context
-            self._log.task = decomposition.task
-            self._log.query = decomposition.query
-            self._log.keywords = decomposition.keywords
+            self._log.task = task
+            self._log.query = query
+            self._log.keywords = keywords
             self.flush_log()
-            return decomposition
+            return json_data
         except Exception as e:     
             console.overlay_print(f"Decomposer failed: {e}", ConsoleType.ERROR)     
             return Decomposition(
