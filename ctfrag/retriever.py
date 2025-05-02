@@ -36,9 +36,9 @@ class RetrieverManager:
     def summarize_context(self, context):
         decomposition = self.extractor.decompose_task(context)
         return {
-            "task": decomposition.task,
-            "query": decomposition.query,
-            "keywords": decomposition.keywords
+            "task": decomposition["task"],
+            "query": decomposition["query"],
+            "keywords": decomposition["keywords"]
         }
 
     def rag_generate(self, query):
