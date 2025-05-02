@@ -6,6 +6,7 @@ from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
 from ctfrag.utils import MetadataCaptureCallback
 import re
+import json
 from ctfrag.backends import LLMs
 
 class Decomposition(BaseModel):
@@ -48,10 +49,13 @@ class ContextDecomposer:
             output = self.chain.run(context=context, callbacks=[metadata_callback])
             token_usages = metadata_callback.usage_metadata
             self.llm.update_model_cost(token_usages)
-            json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', output, re.DOTALL)
-            if json_match:
-                output = json_match.group(1)
-            decomposition = self.parser.parse(output)
+            json_output = output.replace("\\'", "'")
+            json_data = json.loads(json_output)
+            # json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', output, re.DOTALL)
+            # if json_match:
+            #     output = json_match.group(1)
+            # import pdb; pdb.set_trace()
+            decomposition = self.parser.parse(json_data)
             if decomposition.task == context or not decomposition.task.strip():
                 raise ValueError("Task same as context")
             console.overlay_print(f"Task: {decomposition.task}\nQuery: {decomposition.query}\nKeywords: {decomposition.keywords}", ConsoleType.OUTPUT)
@@ -61,7 +65,8 @@ class ContextDecomposer:
             self._log.keywords = decomposition.keywords
             self.flush_log()
             return decomposition
-        except Exception as e:          
+        except Exception as e:     
+            console.overlay_print(f"Decomposer failed: {e}", ConsoleType.ERROR)     
             return Decomposition(
                 task=self.config.prompts.decomposer_defaulttask,
                 query="",
