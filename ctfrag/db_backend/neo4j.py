@@ -5,6 +5,10 @@ from overrides import override
 from neo4j import GraphDatabase
 from langchain_neo4j import Neo4jGraph
 import json
+import time
+import numpy as np
+
+from langchain_community.graphs.graph_document import GraphDocument
 
 class Neo4jDB(BaseVectorDB):
     def __init__(self, embeddings) -> None:
@@ -18,6 +22,39 @@ class Neo4jDB(BaseVectorDB):
     def insert_document(self, documents: List[Document], collection: str):
         graph_store = Neo4jGraph(url=self.uri, username=self.user, password=self.password, database=collection)
         graph_store.add_graph_documents(documents, baseEntityLabel=True, include_source=True)
+        # import pdb; pdb.set_trace()
+
+    # @override
+    def insert_embeddings_from_documents(self, documents: List[Document], collection: str):
+        print(f"⏳ Inserting embeddings for {len(documents)} documents into collection '{collection}'")
+
+        # Step 1: Compute embeddings
+        texts = [doc.page_content for doc in documents]
+        embeddings = self.embeddings.embed_documents(texts)
+
+        # Step 2: Update nodes in Neo4j
+        with self.driver.session(database=collection) as session:
+            for doc, embedding in zip(documents, embeddings):
+                text = doc.page_content
+                if isinstance(embedding, np.ndarray):
+                    embedding = embedding.tolist()
+
+                # Matching exactly on `text` field
+                session.run(
+                    """
+                    MATCH (d:Document)
+                    WHERE d.text = $text
+                    SET d.embedding = $embedding
+                    """,
+                    {
+                        "text": text,
+                        "embedding": embedding
+                    }
+                )
+
+        print("✅ Embeddings inserted into graph.")
+
+
 
     @override
     def delete_collection(self, collection: str):
