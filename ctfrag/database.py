@@ -134,6 +134,7 @@ class RAGDatabase:
             extracted_data = self.extract_kg(texts)
             try:
                 self.vector_db.insert_document(extracted_data, collection)
+                self.vector_db.insert_embeddings_from_documents(texts, collection)  # store embeddings
                 self.vector_db.index_graph(collection)
             except Exception as e:
                 print(f"Error processing file: {path}\nError message: {e}")
