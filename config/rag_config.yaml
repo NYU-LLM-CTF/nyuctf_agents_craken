@@ -1,6 +1,6 @@
 database:
-  storage: 'milvus'
-  #storage: 'neo4j'
+  # storage: 'milvus'
+  storage: 'neo4j'
   config:
     # IVF_FLAT/HNSW
     index_type: "IVF_FLAT"  
@@ -37,8 +37,8 @@ retrieval:
     rag: prompts/rag.yaml
     search: prompts/search.yaml
     extract: prompts/extract.yaml
-  collection: "writeups"
-  #collection: "neo4j"
+  # collection: "writeups"
+  collection: "neo4j"
 
 features:
   hallucination_grading: False
@@ -52,5 +52,5 @@ features:
   decomposition: False
   step_back: False
   question_rewriting: False
-  graph: False
+  graph: True
   force_output: False
