@@ -1,6 +1,6 @@
 database:
   # storage: 'milvus'
-  storage: 'neo4j'
+  storage: 'milvus'
   config:
     # IVF_FLAT/HNSW
     index_type: "IVF_FLAT"  
@@ -52,5 +52,5 @@ features:
   decomposition: False
   step_back: False
   question_rewriting: False
-  graph: True
+  graph: False
   force_output: False

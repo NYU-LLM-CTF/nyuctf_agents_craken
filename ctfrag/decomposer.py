@@ -68,7 +68,10 @@ class ContextDecomposer:
             self._log.keywords = keywords
             self.flush_log()
             return json_data
-        except Exception as e:     
+        except Exception as e:
+            with open("decompose_error.log", "a") as f:
+                f.write(f"Error: {e}\n")
+                f.write(f"Context: {context}\n")
             console.overlay_print(f"Decomposer failed: {e}", ConsoleType.ERROR)     
             return Decomposition(
                 task=self.config.prompts.decomposer_defaulttask,
