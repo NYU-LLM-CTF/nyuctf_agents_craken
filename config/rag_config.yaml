@@ -12,6 +12,7 @@ agent:
   model:
     name: "gpt-4o-2024-11-20"
     temperature: 1
+  call_retriever: ["delegation"]
 
 retrieval:
   algorithm: "self_rag"

@@ -13,6 +13,7 @@ class DatabaseConfig:
 class AgentConfig:
     model_name: str
     model_temperature: str
+    call_retriever: list
 
 @dataclass
 class RAGConfig:
@@ -94,7 +95,8 @@ class RetrieverConfig:
         )
         self.agent_config = AgentConfig(
             model_name=self.config_yaml.get("agent", {}).get("model", {}).get("name", "gpt-4o-mini-2024-07-18"),   
-            model_temperature=self.config_yaml.get("agent", {}).get("model", {}).get("temperature", 0)
+            model_temperature=self.config_yaml.get("agent", {}).get("model", {}).get("temperature", 0),
+            call_retriever=self.config_yaml.get("agent", {}).get("call_retriever", ["delegation"])
         )
         self.rag_config = RAGConfig(
             algorithm=self.config_yaml.get("retrieval", {}).get("algorithm", "self_rag"),
