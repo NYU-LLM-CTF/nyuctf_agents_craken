@@ -6,5 +6,6 @@ decomposition: |
   2. A search query: What specific technical information would help solve this challenge?
   3. Keywords: Extract 3-5 relevant keywords related to techniques needed.
   {format_instructions}
+  You should only output the dictionary or json format cotent. No other content is allowed in the answer
 default_task: |
   Please continue based on your best judgement.

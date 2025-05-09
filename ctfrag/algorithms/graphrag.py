@@ -11,6 +11,9 @@ from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel, Field
 from typing import List
 
+from langchain_core.documents import Document
+from langchain_community.vectorstores.neo4j_vector import remove_lucene_chars
+
 class Entities(BaseModel):
     """
     Identify and capture information about entities from text
@@ -55,6 +58,7 @@ class GraphRAG(RAGAlgorithms):
         result = ""
         entities = entity_extract_chain.invoke({"question": question})
         for entity in entities.names:
+            entity = remove_lucene_chars(entity)
             response = self.graph.query(
                 """CALL db.index.fulltext.queryNodes('entity', $query, {limit: 2})
                 YIELD node, score
@@ -76,9 +80,11 @@ class GraphRAG(RAGAlgorithms):
             result += "\n".join([el['output'] for el in response])
         return result
     
+
     def create_vector_index(self, collection) -> Neo4jVector:
         vector_index = Neo4jVector.from_existing_graph(
-            self.embeddings,
+            # self.embeddings,
+            embedding=self.embeddings,  # set to None to avoid re-embedding
             search_type="hybrid",
             node_label="Document",
             text_node_properties=["text"],
@@ -92,12 +98,60 @@ class GraphRAG(RAGAlgorithms):
     
     def retriever(self, question, collection) -> str:
         vector_index = self.create_vector_index(collection)
-        unstructured_data = [el.page_content for el in vector_index.similarity_search(question)]
+        # # unstructured_data = [el.page_content for el in vector_index.similarity_search(question)]
+        # # Pull BOTH page_content and metadata (source) directly
+        # print(question)
+        # retrieved_docs = vector_index.similarity_search(question)
+        sanitized_question = remove_lucene_chars(question)
+        retrieved_docs = vector_index.similarity_search(sanitized_question, k=3)  # or 10 max
+
+        # print("RETRIEVED ",retrieved_docs[0].metadata)
+
+        # unstructured_data = []
+
+        # for doc in retrieved_docs:
+        #     content = doc.page_content
+        #     # print(type(content))
+        #     print(doc.metadata["source"])
+        #     if "source:" in content:
+        #         main_text, source_part = content.rsplit("source:", 1)
+        #         source = source_part.strip()
+        #     else:
+        #         main_text = content
+        #         source = "unknown"
+
+        #     new_doc = Document(
+        #         metadata={"source": source},
+        #         page_content=content
+        #         # page_content=main_text.strip()
+        #     )
+        #     unstructured_data.append(new_doc)
+
+        # print("RETRIEVED ",unstructured_data[0])
+
+        # # Build unstructured_data as list of Document(metadata=..., page_content=...)
+        unstructured_data = [
+            Document(
+                metadata={"source": el.metadata["source"]},
+                page_content=el.page_content
+            )
+            for el in retrieved_docs
+        ]
+
+
         structured_data = self.structured_retriever(question, collection)
+        # print(structured_data)
+        # final_data = f"""Structured data:
+        #     {structured_data}
+        #     Unstructured data:
+        #     {"#Document ". join(unstructured_data)}
+        # """
+
         final_data = f"""Structured data:
-            {structured_data}
-            Unstructured data:
-            {"#Document ". join(unstructured_data)}
+        {structured_data}
+        
+        Unstructured data:
+        {"#Document ".join(doc.page_content for doc in unstructured_data)}
         """
         return final_data, unstructured_data
     
