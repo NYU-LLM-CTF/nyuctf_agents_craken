@@ -122,6 +122,11 @@ class TogetherBackend(LLMBackend):
             "max_context": 130815,
             "cost_per_input_token": 3.5e-06,
             "cost_per_output_token": 3.5e-06,
+        },
+        "deepseek-ai/DeepSeek-V3": {
+            "max_context": 131000,
+            "cost_per_input_token": 6.25e-04,
+            "cost_per_output_token": 6.25e-04,
         }
     }
     def __init__(self, model, config: dict):
