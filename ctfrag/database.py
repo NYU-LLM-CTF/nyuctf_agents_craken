@@ -483,7 +483,10 @@ class RAGDatabase:
                 print(f"Error: Column not found in the file - {e}")
                 return
         for key, value in data.items():
-            document = {"page_content": value, "metadata": {"name": key}}
+            if path.endswith(".csv"):
+                document = Document(page_content=value, metadata={"name": key})
+            else:
+                document = {"page_content": value, "metadata": {"name": key}}
             docs = text_splitter.split_documents([document])
             try:
                 self.vector_db.insert_document(docs, collection)
