@@ -1,5 +1,5 @@
-# Knowledge-based CTF
-## Run KAPTER on NYU CTF Agents
+# CRAKEN: Cybersecurity LLM Agent with Knowledge-Based Execution
+## Run CRAKEN on NYU CTF Agents
 ### 1. Clone repo
 At current stage KAPTER only support the development repo of NYU CTF Agents (nyuctf_multiagent)
 ```bash
@@ -32,7 +32,7 @@ Assuming using Milvus database (Classic RAG)
 python -m ctfrag -i {PATH TO THE DATA FOLDER} -c {COLLECTION THAT STORE THE DATA}
 ```
 If using GraphRAG, specify Neo4j database
-### 5. Run KAPTER
+### 5. Run CRAKEN
 ```bash
 #!/bin/bash
 
@@ -59,15 +59,11 @@ function run() {
         --challenge $1
 }
 ```
-## TODO List
-### Agent
-- [x] Complete WebSearch Agent implementation
-- [x] Complete Self-RAG implementation (High Priority)
-- [x] Refactor RAG Agent
-- [ ] Refactor Graph-RAG
+## Run CRAKEN on Other Agents
+### Setup
+
+Follow step 1, 2, 3, 4 of section **Run CRAKEN on NYU CTF Agents**
+
 ### Integration
-- [x] Integrate RAG Agent to D-CIPHER
-- [ ] Enhance integration (High Priority)
-### Database
-- [x] Extend writeup database to 1000 writeups (High Priority)
-- [x] Other collections, code, commonsense, payload etc. (High Priority)
+
+Integrate CRAKEN built-in function in your own agents
