@@ -1,4 +1,6 @@
 # CRAKEN: Cybersecurity LLM Agent with Knowledge-Based Execution
+This is the official repository for paper "CRAKEN: Cybersecurity LLM Agent with Knowledge-Based Execution"
+
 ## Run CRAKEN on NYU CTF Agents
 ### 1. Clone repo
 At current stage CRAKEN only support the development repo of NYU CTF Agents (nyuctf_multiagent)
