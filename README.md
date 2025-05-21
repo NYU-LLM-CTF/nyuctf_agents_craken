@@ -1,7 +1,7 @@
 # CRAKEN: Cybersecurity LLM Agent with Knowledge-Based Execution
 ## Run CRAKEN on NYU CTF Agents
 ### 1. Clone repo
-At current stage KAPTER only support the development repo of NYU CTF Agents (nyuctf_multiagent)
+At current stage CRAKEN only support the development repo of NYU CTF Agents (nyuctf_multiagent)
 ```bash
 git clone git@github.com:NYU-LLM-CTF/nyuctf_multiagent.git
 cd nyuctf_multiagent
@@ -9,7 +9,7 @@ git clone git@github.com:NYU-LLM-CTF/ctfrag.git
 ```
 Make sure the folder ctfrag is in the root folder of nyuctf_multiagent
 ### 2. Config keys
-The default key file path in KAPTER's config is under nyuctf_multiagent/keys.cfg. Using the template below
+The default key file path in CRAKEN's config is under nyuctf_multiagent/keys.cfg. Using the template below
 ```
 OPENAI= # OpenAI API Key
 ANTHROPIC= # Anthropic API Key
