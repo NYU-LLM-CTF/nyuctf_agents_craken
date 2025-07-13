@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ctfrag"
+name = "craken"
 version = "0.1"
 authors = [
   { name="NYU CTF", email="nyuctf@gmail.com" },
@@ -56,4 +56,4 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["ctfrag"]
+packages = ["craken"]
