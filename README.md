@@ -61,6 +61,8 @@ function run() {
         --challenge $1
 }
 ```
+<b><span style="color:red">🛠️ WIP: We are working on updating the <a href="https://github.com/NYU-LLM-CTF/nyuctf_agents">NYU CTF Agents</a> with CRAKEN integration for easier usage</span></b>
+
 ## Run CRAKEN on Other Agents
 ### Setup
 
